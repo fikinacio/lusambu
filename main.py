@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
 from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from config import settings
 from agent import create_graph, LusambuState
@@ -20,9 +21,11 @@ graph = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global graph
-    graph = create_graph(settings.REDIS_URL)
-    logger.info("Lusambu iniciado e pronto.")
-    yield
+    async with await AsyncPostgresSaver.from_conn_string(settings.DATABASE_URL) as checkpointer:
+        await checkpointer.setup()
+        graph = create_graph(checkpointer)
+        logger.info("Lusambu iniciado e pronto.")
+        yield
     logger.info("Lusambu encerrado.")
 
 
@@ -30,21 +33,15 @@ app = FastAPI(title="Lusambu — Agente de Vendas Bisca+", lifespan=lifespan)
 
 
 def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:
-    """
-    Extrai número e texto da payload da Evolution API.
-    Retorna (None, None) se a mensagem não for para processar.
-    """
     try:
         msg_data = data.get("data", {})
 
-        # Ignora mensagens enviadas pelo próprio bot
         if msg_data.get("key", {}).get("fromMe"):
             return None, None
 
         number = msg_data.get("key", {}).get("remoteJid", "")
         number = number.replace("@s.whatsapp.net", "").replace("@g.us", "")
 
-        # Suporta texto simples e mensagem extendida
         message_obj = msg_data.get("message", {})
         text = (
             message_obj.get("conversation")
@@ -63,23 +60,13 @@ def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:
 
 
 async def _process_message(number: str, text: str):
-    """
-    Processa mensagem de forma assíncrona — não bloqueia o webhook.
-
-    Para conversas existentes, passa apenas a nova mensagem — o checkpointer
-    Redis carrega o estado anterior (stage, lead_info, objection_count, etc.)
-    sem os repor a zero.
-    Para conversas novas, passa o estado inicial completo.
-    """
     config = {"configurable": {"thread_id": number}}
 
     existing = await graph.aget_state(config)
 
     if existing.values:
-        # Conversa existente — o checkpointer carrega o estado; só adicionamos a nova mensagem
         input_state = {"messages": [HumanMessage(content=text)]}
     else:
-        # Primeira mensagem deste número — estado inicial completo
         input_state: LusambuState = {
             "messages": [HumanMessage(content=text)],
             "whatsapp_number": number,
@@ -110,7 +97,6 @@ async def webhook(request: Request):
 
     logger.info(f"Mensagem recebida de {number}: {text[:50]}...")
 
-    # Processa em background para não bloquear a resposta ao Evolution
     asyncio.create_task(_process_message(number, text))
 
     return {"status": "processing"}

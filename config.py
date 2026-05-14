@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str
     SUPABASE_URL: str
     SUPABASE_KEY: str
-    REDIS_URL: str
+    DATABASE_URL: str
     EVOLUTION_API_URL: str
     EVOLUTION_API_KEY: str
     EVOLUTION_INSTANCE: str
