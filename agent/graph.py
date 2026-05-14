@@ -1,6 +1,6 @@
 import logging
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.redis import AsyncRedisSaver
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from .state import LusambuState
 from .nodes import lusambu_node, discard_node, escalate_node
@@ -9,27 +9,18 @@ logger = logging.getLogger(__name__)
 
 
 def _router(state: LusambuState) -> str:
-    """
-    Decide o próximo nó após lusambu_node.
-    Para stages conversacionais (qualify/pitch/objection/close), termina e
-    aguarda a próxima mensagem via webhook — o checkpointer Redis preserva
-    o estado entretanto.
-    """
     stage = state.get("stage", "qualify")
-
     if stage == "discard":
         return "discard"
     if stage == "escalate":
         return "escalate"
-
-    # qualify | pitch | objection | close → lusambu já respondeu, fim desta invocação
     return END
 
 
-def create_graph(redis_url: str):
+def create_graph(checkpointer: BaseCheckpointSaver):
     """
-    Constrói e compila o grafo LangGraph do agente Lusambu.
-    Usa AsyncRedisSaver para persistir estado por conversa (thread_id = número WhatsApp).
+    Constrói e compila o grafo LangGraph.
+    O checkpointer (Redis em produção, MemorySaver em testes/local) é passado externamente.
     """
     builder = StateGraph(LusambuState)
 
@@ -48,7 +39,6 @@ def create_graph(redis_url: str):
     builder.add_edge("discard", END)
     builder.add_edge("escalate", END)
 
-    checkpointer = AsyncRedisSaver.from_conn_string(redis_url)
     graph = builder.compile(checkpointer=checkpointer)
     logger.info("Grafo Lusambu compilado com sucesso.")
     return graph

@@ -96,10 +96,8 @@ async def main() -> None:
         return
 
     # Grafo com checkpointer em memória (sem Redis)
-    with patch("agent.graph.AsyncRedisSaver") as mock_redis:
-        mock_redis.from_conn_string.return_value = MemorySaver()
-        from agent.graph import create_graph
-        graph = create_graph("redis://fake")
+    from agent.graph import create_graph
+    graph = create_graph(MemorySaver())
 
     # Substitui no namespace de agent.nodes — é lá que as funções foram importadas
     # (substituir nos módulos evo/sb não chegaria porque nodes.py já copiou as referências)

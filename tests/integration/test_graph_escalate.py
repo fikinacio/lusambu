@@ -3,7 +3,7 @@ Integração: fluxo completo de escalação.
 Três cenários: quer humano, pronto para fechar, objecção repetida.
 """
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -12,9 +12,7 @@ from agent.graph import create_graph
 
 @pytest.fixture
 def grafo():
-    with patch("agent.graph.AsyncRedisSaver") as mock_redis:
-        mock_redis.from_conn_string.return_value = MemorySaver()
-        return create_graph("redis://fake")
+    return create_graph(MemorySaver())
 
 
 def _extractor_quer_humano() -> AIMessage:

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
 from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.redis import AsyncRedisSaver
 
 from config import settings
 from agent import create_graph, LusambuState
@@ -20,9 +21,10 @@ graph = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global graph
-    graph = create_graph(settings.REDIS_URL)
-    logger.info("Lusambu iniciado e pronto.")
-    yield
+    async with AsyncRedisSaver.from_conn_string(settings.REDIS_URL) as checkpointer:
+        graph = create_graph(checkpointer)
+        logger.info("Lusambu iniciado e pronto.")
+        yield
     logger.info("Lusambu encerrado.")
 
 

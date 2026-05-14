@@ -4,7 +4,7 @@ Lead sem empresa → lusambu_node responde → discard_node envia despedida → 
 Redis substituído por MemorySaver. LLM, Evolution API e Supabase são mockados.
 """
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -14,9 +14,7 @@ from agent.graph import create_graph
 @pytest.fixture
 def grafo():
     """Grafo com checkpointer em memória (sem Redis real)."""
-    with patch("agent.graph.AsyncRedisSaver") as mock_redis:
-        mock_redis.from_conn_string.return_value = MemorySaver()
-        return create_graph("redis://fake")
+    return create_graph(MemorySaver())
 
 
 def _extractor_sem_empresa() -> AIMessage:
