@@ -3,7 +3,7 @@ import json
 import logging
 import random
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import SystemMessage, AIMessage
+from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 
 from .state import LusambuState, LeadInfo
 from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT
@@ -28,10 +28,19 @@ async def _human_delay():
 async def _extract_lead_info(messages: list) -> LeadInfo:
     """Chama LLM para extrair dados estruturados da conversa."""
     try:
-        response = await llm_extractor.ainvoke(
-            [SystemMessage(content=EXTRACTION_PROMPT)] + messages
-        )
-        return json.loads(response.content)
+        # A conversa deve terminar com HumanMessage — Claude não suporta prefill de assistente
+        extract_msgs = [SystemMessage(content=EXTRACTION_PROMPT)] + list(messages) + [
+            HumanMessage(content="Extrai o JSON agora.")
+        ]
+        response = await llm_extractor.ainvoke(extract_msgs)
+        content = response.content.strip()
+        # Remove bloco markdown se presente (```json ... ```)
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.strip()
+        return json.loads(content)
     except Exception as e:
         logger.error(f"Erro ao extrair lead info: {e}")
         return {
