@@ -21,7 +21,7 @@ graph = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global graph
-    async with await AsyncPostgresSaver.from_conn_string(settings.DATABASE_URL) as checkpointer:
+    async with AsyncPostgresSaver.from_conn_string(settings.DATABASE_URL) as checkpointer:
         await checkpointer.setup()
         graph = create_graph(checkpointer)
         logger.info("Lusambu iniciado e pronto.")
