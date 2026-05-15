@@ -22,5 +22,6 @@ class LusambuState(TypedDict):
     lead_info: LeadInfo
     stage: str                 # qualify | pitch | objection | close | discard | escalate | end
     objection_count: int
+    turn_count: int
     escalation_reason: str
     fidel_notified: bool

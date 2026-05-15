@@ -52,10 +52,15 @@ async def _extract_lead_info(messages: list) -> LeadInfo:
         }
 
 
-def _determine_stage(lead_info: LeadInfo, objection_count: int) -> str:
+MAX_TURNS = 12
+
+
+def _determine_stage(lead_info: LeadInfo, objection_count: int, turn_count: int) -> str:
     """Define o próximo stage com base na informação extraída."""
     if lead_info.get("has_business") is False:
         return "discard"
+    if turn_count >= MAX_TURNS:
+        return "escalate"
     if lead_info.get("wants_human") or objection_count >= 2:
         return "escalate"
     if lead_info.get("ready_to_close"):
@@ -77,6 +82,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     Cobre: qualify, pitch, objection, close.
     """
     objection_count = state.get("objection_count", 0)
+    turn_count = state.get("turn_count", 0) + 1
     lead_info = state.get("lead_info", {})
 
     if state.get("stage") == "objection":
@@ -92,7 +98,11 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     response: AIMessage = await llm.ainvoke(messages_for_llm)
 
     updated_lead_info = await _extract_lead_info(list(state["messages"]) + [response])
-    next_stage = _determine_stage(updated_lead_info, objection_count)
+    next_stage = _determine_stage(updated_lead_info, objection_count, turn_count)
+
+    escalation_reason = state.get("escalation_reason", "")
+    if next_stage == "escalate" and turn_count >= MAX_TURNS:
+        escalation_reason = f"Conversa extensa ({turn_count} turnos) — revisão humana"
 
     await _human_delay()
     await send_whatsapp_message(state["whatsapp_number"], response.content)
@@ -109,6 +119,8 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
         "lead_info": updated_lead_info,
         "stage": next_stage,
         "objection_count": objection_count,
+        "turn_count": turn_count,
+        "escalation_reason": escalation_reason,
     }
 
 

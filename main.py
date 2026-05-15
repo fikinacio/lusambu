@@ -106,6 +106,7 @@ async def _process_message(number: str, text: str):
             "lead_info": {},
             "stage": "qualify",
             "objection_count": 0,
+            "turn_count": 0,
             "escalation_reason": "",
             "fidel_notified": False,
         }
