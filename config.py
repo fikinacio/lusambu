@@ -7,11 +7,11 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str
     SUPABASE_URL: str
     SUPABASE_KEY: str
-    DATABASE_URL: str
     EVOLUTION_API_URL: str
     EVOLUTION_API_KEY: str
     EVOLUTION_INSTANCE: str
     FIDEL_WHATSAPP_NUMBER: str
+    CHECKPOINT_DB_PATH: str = "/data/checkpoints.sqlite"
 
 
 settings = Settings()
