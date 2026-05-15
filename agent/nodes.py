@@ -6,7 +6,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 
 from .state import LusambuState, LeadInfo
-from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT
+from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
 from integrations.supabase_client import upsert_lead
 
@@ -88,10 +88,17 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     if state.get("stage") == "objection":
         objection_count += 1
 
+    # Atribui variante A/B quando entra em pitch pela primeira vez
+    variant = state.get("prompt_variant") or ""
+    if not variant and state.get("stage") == "pitch":
+        variant = random.choice(["A", "B"])
+
     system = SYSTEM_PROMPT.format(
         stage=state.get("stage", "qualify"),
         lead_info=json.dumps(lead_info, ensure_ascii=False, default=str),
         objection_count=objection_count,
+        prompt_variant=variant or "A",
+        pitch_instructions=PITCH_B if variant == "B" else PITCH_A,
     )
 
     messages_for_llm = [SystemMessage(content=system)] + list(state["messages"])
@@ -112,6 +119,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
         **updated_lead_info,
         "whatsapp": state["whatsapp_number"],
         "stage": next_stage,
+        "prompt_variant": variant or None,
     })
 
     return {
@@ -121,6 +129,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
         "stage": next_stage,
         "objection_count": objection_count,
         "turn_count": turn_count,
+        "prompt_variant": variant,
         "escalation_reason": escalation_reason,
     }
 

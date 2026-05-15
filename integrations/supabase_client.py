@@ -58,7 +58,7 @@ async def get_all_leads() -> list[dict]:
         db = get_supabase()
         result = (
             db.table("lusambu_leads")
-            .select("whatsapp, name, company, sector, classification, stage, status, pain_point, followup_count, last_contact_at")
+            .select("whatsapp, name, company, sector, classification, stage, status, pain_point, followup_count, last_contact_at, prompt_variant")
             .order("last_contact_at", desc=True)
             .execute()
         )

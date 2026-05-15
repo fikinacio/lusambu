@@ -101,6 +101,7 @@ def _fresh_state(number: str, text: str) -> LusambuState:
         "stage": "qualify",
         "objection_count": 0,
         "turn_count": 0,
+        "prompt_variant": "",
         "escalation_reason": "",
         "fidel_notified": False,
     }
@@ -186,6 +187,7 @@ async def dashboard(key: str = ""):
           <td style="font-size:12px">{l.get("whatsapp") or "—"}</td>
           <td style="font-size:12px;color:#aaa">{last}</td>
           <td style="text-align:center">{l.get("followup_count") or 0}</td>
+          <td style="text-align:center;font-weight:700">{l.get("prompt_variant") or "—"}</td>
         </tr>"""
 
     html = f"""<!DOCTYPE html>
@@ -218,7 +220,7 @@ async def dashboard(key: str = ""):
 <table>
   <thead><tr>
     <th>Nome</th><th>Empresa</th><th>Sector</th><th>Class.</th>
-    <th>Stage</th><th>Dor</th><th>WhatsApp</th><th>Último contacto</th><th>Follow-ups</th>
+    <th>Stage</th><th>Dor</th><th>WhatsApp</th><th>Último contacto</th><th>Follow-ups</th><th>Variante</th>
   </tr></thead>
   <tbody>{rows}</tbody>
 </table>
