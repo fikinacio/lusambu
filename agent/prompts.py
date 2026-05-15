@@ -75,4 +75,10 @@ Critérios de classificação:
 - warm: lead tem empresa e respondeu positivamente mas sem compromisso
 - cold: lead tem empresa mas está distante ou céptico
 - unknown: informação insuficiente
+
+Critérios para ready_to_close (APENAS true se pelo menos um destes se verificar):
+- Lead pede explicitamente uma proposta ou orçamento ("quero uma proposta", "quanto custa", "podem enviar proposta")
+- Lead pede uma reunião ou demonstração ("vamos marcar", "quero uma demo", "quando podemos falar")
+- Lead usa linguagem de decisão clara ("quero avançar", "como faço para começar", "vamos a isso", "como assino")
+NÃO marcar ready_to_close=true para: "interessante", "parece bem", "vou pensar", "faz sentido" — estes são warm, não fecho.
 """
