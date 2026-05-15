@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
 from langchain_core.messages import HumanMessage
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from config import settings
 from agent import create_graph, LusambuState
@@ -21,10 +22,10 @@ graph = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global graph
-    async with await AsyncPostgresSaver.from_conn_string(settings.DATABASE_URL) as checkpointer:
-        await checkpointer.setup()
+    os.makedirs(os.path.dirname(settings.CHECKPOINT_DB_PATH), exist_ok=True)
+    async with AsyncSqliteSaver.from_conn_string(settings.CHECKPOINT_DB_PATH) as checkpointer:
         graph = create_graph(checkpointer)
-        logger.info("Lusambu iniciado e pronto.")
+        logger.info(f"Lusambu iniciado. Checkpoints em {settings.CHECKPOINT_DB_PATH}")
         yield
     logger.info("Lusambu encerrado.")
 

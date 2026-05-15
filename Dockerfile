@@ -16,6 +16,10 @@ COPY config.py main.py ./
 COPY agent ./agent
 COPY integrations ./integrations
 
+# Volume para persistir os checkpoints SQLite entre redeploys
+RUN mkdir -p /data
+VOLUME ["/data"]
+
 EXPOSE 8000
 
 # 1 worker — o grafo LangGraph é inicializado uma vez no lifespan.
