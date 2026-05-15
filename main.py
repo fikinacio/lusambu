@@ -3,12 +3,15 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, HTTPException
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from config import settings
 from agent import create_graph, LusambuState
+from integrations.evolution import send_whatsapp_message
+from integrations.supabase_client import get_stale_leads, increment_followup
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,6 +21,31 @@ logger = logging.getLogger(__name__)
 
 graph = None
 
+_FOLLOWUP_MSGS = {
+    "qualify": "Olá! Percebo que és ocupado. Tens 2 minutos para continuar a nossa conversa?",
+    "pitch":   "Só a verificar — ficaste com alguma dúvida sobre o que te partilhei?",
+    "objection": "Ainda estás a pensar? Posso esclarecer alguma coisa específica.",
+}
+_FOLLOWUP_DEFAULT = "Olá! Queria só confirmar se ainda tens interesse em perceber como podemos ajudar o teu negócio."
+
+
+async def _send_followups() -> None:
+    """Envia follow-up a leads que não responderam em 24h."""
+    leads = await get_stale_leads(hours=24)
+    if not leads:
+        return
+    logger.info(f"Follow-up: {len(leads)} lead(s) a contactar.")
+    for lead in leads:
+        number = lead.get("whatsapp")
+        stage = lead.get("stage", "qualify")
+        msg = _FOLLOWUP_MSGS.get(stage, _FOLLOWUP_DEFAULT)
+        try:
+            await send_whatsapp_message(number, msg)
+            await increment_followup(number)
+            logger.info(f"Follow-up enviado para {number}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar follow-up para {number}: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,8 +53,12 @@ async def lifespan(app: FastAPI):
     os.makedirs(os.path.dirname(settings.CHECKPOINT_DB_PATH), exist_ok=True)
     async with AsyncSqliteSaver.from_conn_string(settings.CHECKPOINT_DB_PATH) as checkpointer:
         graph = create_graph(checkpointer)
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(_send_followups, "interval", hours=1, id="followup")
+        scheduler.start()
         logger.info(f"Lusambu iniciado. Checkpoints em {settings.CHECKPOINT_DB_PATH}")
         yield
+        scheduler.shutdown(wait=False)
     logger.info("Lusambu encerrado.")
 
 
