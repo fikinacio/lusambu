@@ -125,8 +125,21 @@ async def main() -> None:
             continue
 
         existing = await graph.aget_state(config)
+        existing_stage = existing.values.get("stage") if existing.values else None
 
-        if existing.values:
+        if existing_stage == "end":
+            print("\033[90m[nova conversa iniciada]\033[0m")
+            state_input = {
+                "messages": [HumanMessage(content=user_input)],
+                "whatsapp_number": number,
+                "lead_info": {},
+                "stage": "qualify",
+                "objection_count": 0,
+                "turn_count": 0,
+                "escalation_reason": "",
+                "fidel_notified": False,
+            }
+        elif existing.values:
             state_input = {"messages": [HumanMessage(content=user_input)]}
         else:
             state_input = {

@@ -92,24 +92,33 @@ def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:
         return None, None
 
 
+def _fresh_state(number: str, text: str) -> LusambuState:
+    return {
+        "messages": [HumanMessage(content=text)],
+        "whatsapp_number": number,
+        "lead_info": {},
+        "stage": "qualify",
+        "objection_count": 0,
+        "turn_count": 0,
+        "escalation_reason": "",
+        "fidel_notified": False,
+    }
+
+
 async def _process_message(number: str, text: str):
     config = {"configurable": {"thread_id": number}}
 
     existing = await graph.aget_state(config)
+    existing_stage = existing.values.get("stage") if existing.values else None
 
-    if existing.values:
+    if existing_stage == "end":
+        # Lead voltou após conversa terminada — reinicia completamente
+        logger.info(f"Re-entry de {number} (stage anterior: end)")
+        input_state = _fresh_state(number, text)
+    elif existing.values:
         input_state = {"messages": [HumanMessage(content=text)]}
     else:
-        input_state: LusambuState = {
-            "messages": [HumanMessage(content=text)],
-            "whatsapp_number": number,
-            "lead_info": {},
-            "stage": "qualify",
-            "objection_count": 0,
-            "turn_count": 0,
-            "escalation_reason": "",
-            "fidel_notified": False,
-        }
+        input_state = _fresh_state(number, text)
 
     try:
         await graph.ainvoke(input_state, config=config)
