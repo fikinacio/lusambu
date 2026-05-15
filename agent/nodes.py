@@ -7,7 +7,7 @@ from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 
 from .state import LusambuState, LeadInfo
 from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT
-from integrations.evolution import send_whatsapp_message, notify_fidel
+from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
 from integrations.supabase_client import upsert_lead
 
 logger = logging.getLogger(__name__)
@@ -104,6 +104,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     if next_stage == "escalate" and turn_count >= MAX_TURNS:
         escalation_reason = f"Conversa extensa ({turn_count} turnos) — revisão humana"
 
+    await send_typing_indicator(state["whatsapp_number"])
     await _human_delay()
     await send_whatsapp_message(state["whatsapp_number"], response.content)
 
@@ -135,6 +136,7 @@ async def discard_node(state: LusambuState) -> LusambuState:
         "Se um dia tiveres ou conheceres algum empresário com interesse, "
         "fica à vontade para partilhar. Boa sorte! 👋"
     )
+    await send_typing_indicator(state["whatsapp_number"])
     await _human_delay()
     await send_whatsapp_message(state["whatsapp_number"], message)
     await upsert_lead({
@@ -183,6 +185,7 @@ async def escalate_node(state: LusambuState) -> LusambuState:
 
     await notify_fidel(summary)
 
+    await send_typing_indicator(state["whatsapp_number"])
     await _human_delay()
     await send_whatsapp_message(
         state["whatsapp_number"],

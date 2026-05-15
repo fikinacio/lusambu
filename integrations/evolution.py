@@ -33,6 +33,21 @@ async def send_whatsapp_message(number: str, text: str) -> bool:
         return False
 
 
+async def send_typing_indicator(number: str) -> None:
+    """Envia sinal 'a escrever...' via Evolution API. Falha silenciosamente."""
+    url = f"{EVOLUTION_URL}/chat/sendPresence/{EVOLUTION_INSTANCE}"
+    payload = {"number": number, "options": {"presence": "composing"}}
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(
+                url,
+                headers={"apikey": EVOLUTION_KEY, "Content-Type": "application/json"},
+                json=payload,
+            )
+    except Exception:
+        pass  # typing indicator é best-effort — nunca bloqueia o fluxo
+
+
 async def notify_fidel(message: str) -> bool:
     """Envia notificação para o número do Fidel."""
     if not FIDEL_NUMBER:
