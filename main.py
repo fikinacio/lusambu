@@ -93,7 +93,7 @@ def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:
         return None, None
 
 
-def _fresh_state(number: str, text: str) -> LusambuState:
+def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuState:
     return {
         "messages": [HumanMessage(content=text)],
         "whatsapp_number": number,
@@ -101,6 +101,7 @@ def _fresh_state(number: str, text: str) -> LusambuState:
         "stage": "qualify",
         "objection_count": 0,
         "turn_count": 0,
+        "message_offset": message_offset,
         "prompt_variant": "",
         "escalation_reason": "",
         "fidel_notified": False,
@@ -114,9 +115,10 @@ async def _process_message(number: str, text: str):
     existing_stage = existing.values.get("stage") if existing.values else None
 
     if existing_stage == "end":
-        # Lead voltou após conversa terminada — reinicia completamente
-        logger.info(f"Re-entry de {number} (stage anterior: end)")
-        input_state = _fresh_state(number, text)
+        # Lead voltou após conversa terminada — reinicia com offset para ignorar histórico antigo
+        offset = len(existing.values.get("messages", []))
+        logger.info(f"Re-entry de {number} — offset={offset}")
+        input_state = _fresh_state(number, text, message_offset=offset)
     elif existing.values:
         input_state = {"messages": [HumanMessage(content=text)]}
     else:

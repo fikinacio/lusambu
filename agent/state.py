@@ -23,6 +23,7 @@ class LusambuState(TypedDict):
     stage: str                 # qualify | pitch | objection | close | discard | escalate | end
     objection_count: int
     turn_count: int
+    message_offset: int
     prompt_variant: str
     escalation_reason: str
     fidel_notified: bool

@@ -128,7 +128,8 @@ async def main() -> None:
         existing_stage = existing.values.get("stage") if existing.values else None
 
         if existing_stage == "end":
-            print("\033[90m[nova conversa iniciada]\033[0m")
+            offset = len(existing.values.get("messages", []))
+            print(f"\033[90m[nova conversa iniciada — offset={offset}]\033[0m")
             state_input = {
                 "messages": [HumanMessage(content=user_input)],
                 "whatsapp_number": number,
@@ -136,6 +137,8 @@ async def main() -> None:
                 "stage": "qualify",
                 "objection_count": 0,
                 "turn_count": 0,
+                "message_offset": offset,
+                "prompt_variant": "",
                 "escalation_reason": "",
                 "fidel_notified": False,
             }
@@ -149,6 +152,8 @@ async def main() -> None:
                 "stage": "qualify",
                 "objection_count": 0,
                 "turn_count": 0,
+                "message_offset": 0,
+                "prompt_variant": "",
                 "escalation_reason": "",
                 "fidel_notified": False,
             }

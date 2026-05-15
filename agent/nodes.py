@@ -101,10 +101,13 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
         pitch_instructions=PITCH_B if variant == "B" else PITCH_A,
     )
 
-    messages_for_llm = [SystemMessage(content=system)] + list(state["messages"])
+    offset = state.get("message_offset", 0)
+    recent_messages = list(state["messages"])[offset:]
+
+    messages_for_llm = [SystemMessage(content=system)] + recent_messages
     response: AIMessage = await llm.ainvoke(messages_for_llm)
 
-    updated_lead_info = await _extract_lead_info(list(state["messages"]) + [response])
+    updated_lead_info = await _extract_lead_info(recent_messages + [response])
     next_stage = _determine_stage(updated_lead_info, objection_count, turn_count)
 
     escalation_reason = state.get("escalation_reason", "")
