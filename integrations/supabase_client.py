@@ -52,6 +52,22 @@ async def get_stale_leads(hours: int = 24) -> list[dict]:
         return []
 
 
+async def get_all_leads() -> list[dict]:
+    """Todos os leads ordenados por último contacto."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("lusambu_leads")
+            .select("whatsapp, name, company, sector, classification, stage, status, pain_point, followup_count, last_contact_at")
+            .order("last_contact_at", desc=True)
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Erro ao carregar leads: {e}")
+        return []
+
+
 async def increment_followup(whatsapp: str) -> None:
     """Regista o follow-up enviado e actualiza o timestamp."""
     try:

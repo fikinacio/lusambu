@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     EVOLUTION_INSTANCE: str
     FIDEL_WHATSAPP_NUMBER: str
     CHECKPOINT_DB_PATH: str = "/data/checkpoints.sqlite"
+    DASHBOARD_KEY: str = ""
 
 
 settings = Settings()
