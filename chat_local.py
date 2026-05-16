@@ -9,6 +9,13 @@ Uso:
 """
 import asyncio
 import os
+import sys
+
+# Força UTF-8 no stdout/stderr para suportar caracteres Unicode no Windows.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 # ---------------------------------------------------------------------------
@@ -16,13 +23,14 @@ import os
 # ---------------------------------------------------------------------------
 
 def _load_dotenv(path: str = ".env") -> None:
+    # Força leitura do .env — tem prioridade sobre o ambiente do processo pai.
     try:
         with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, _, val = line.partition("=")
-                    os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+                    os.environ[key.strip()] = val.strip().strip('"').strip("'")
     except FileNotFoundError:
         pass
 
@@ -46,10 +54,28 @@ os.environ.setdefault("FIDEL_WHATSAPP_NUMBER", "244900000000")
 from unittest.mock import patch
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
+from langchain_anthropic import ChatAnthropic
+import httpx
+import anthropic as _anthropic
 
 import integrations.evolution as evo
 import integrations.supabase_client as sb
 import agent.nodes as _nodes
+
+
+def _llm_no_ssl(model: str, max_tokens: int, temperature: float) -> ChatAnthropic:
+    """Cria um ChatAnthropic com verificação SSL desactivada (ambientes corporativos)."""
+    llm = ChatAnthropic(model=model, max_tokens=max_tokens, temperature=temperature)
+    # Substitui o cached_property _async_client por um sem SSL
+    llm.__dict__["_async_client"] = _anthropic.AsyncAnthropic(
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        http_client=httpx.AsyncClient(verify=False),
+    )
+    return llm
+
+
+_nodes.llm = _llm_no_ssl("claude-sonnet-4-6", 500, 0.7)
+_nodes.llm_extractor = _llm_no_ssl("claude-sonnet-4-6", 300, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +117,7 @@ async def _no_delay() -> None:
 async def main() -> None:
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
     if not api_key or api_key.startswith("sk-ant-..."):
-        print("\n\033[91m❌  ANTHROPIC_API_KEY não encontrada.\033[0m")
+        print("\n\033[91mERRO: ANTHROPIC_API_KEY não encontrada.\033[0m")
         print("   Cria o ficheiro .env com:\n   ANTHROPIC_API_KEY=sk-ant-...\n")
         return
 
