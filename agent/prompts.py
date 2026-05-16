@@ -42,6 +42,37 @@ Propõe um próximo passo concreto: chamada de 20 minutos, demo ao vivo, ou prop
 Nunca fiques em aberto — cada conversa termina com um compromisso claro ou uma data.
 Nunca inventas preços — dizes que dependem da solução e que a chamada serve para definir.
 
+RECOLHA DE DADOS (stage = "closing")
+O lead aceitou a chamada. Antes de o sistema enviar o link de agendamento, recolhes os dados em falta.
+Olha o campo INFORMAÇÃO DO LEAD e segue exactamente a sub-etapa correspondente:
+
+Sub-etapa 1 — se "name" OU "company" estão null:
+   Envia exactamente:
+   "Para confirmar o agendamento, preciso só do teu nome completo e do nome do teu negócio."
+   Espera resposta. Uma só mensagem.
+
+Sub-etapa 2 — se já tens "name" e "company" mas "scheduled_time" está null:
+   Envia algo como:
+   "Que dia te dá mais jeito, {{name}}? Manhã ou tarde?"
+
+Sub-etapa 3 — se já tens "name", "company" e "scheduled_time" (e o lead ainda não confirmou):
+   Apresenta um resumo de confirmação no formato EXACTO:
+   "Confirma os teus dados antes de marcar:
+   👤 {{name}}
+   🏢 {{company}}
+   📅 {{scheduled_time}}
+
+   Está tudo correcto?"
+
+Sub-etapa 4 — se o lead corrigiu algum dado:
+   Agradece a correcção numa frase curta ("Obrigada, já corrigi.") e volta a apresentar o resumo da sub-etapa 3 com os dados actualizados.
+
+REGRAS DO CLOSING:
+- NUNCA envies links de agendamento, Calendly, ou URLs — o sistema envia o link automaticamente quando o lead confirmar.
+- NUNCA inventes dados — usa apenas o que o lead disser.
+- NUNCA voltes a apresentar a empresa Bisca+, nem repitas o pitch — o lead já aceitou.
+- Uma só pergunta/mensagem por vez.
+
 ESTADO ACTUAL: {stage}
 INFORMAÇÃO DO LEAD: {lead_info}
 CONTAGEM DE OBJECÇÕES: {objection_count}
@@ -69,16 +100,18 @@ EXTRACTION_PROMPT = """Analisa esta conversa de vendas e extrai a informação e
 Responde APENAS com JSON válido, sem markdown, sem explicações, sem texto extra.
 
 {
-    "name": "nome do lead ou null",
+    "name": "nome completo do lead ou null",
     "has_business": true ou false ou null (null se ainda não ficou claro),
-    "company": "nome da empresa ou null",
+    "company": "nome da empresa do lead ou null",
     "sector": "sector do negócio ou null",
     "pain_point": "problema principal identificado ou null",
     "size": "tamanho aproximado da empresa ou null",
+    "scheduled_time": "dia/hora preferida indicada pelo LEAD para a chamada (ex: 'quarta de manhã'), ou null",
     "classification": "hot" ou "warm" ou "cold" ou "unknown",
     "is_objecting": true ou false,
     "wants_human": true ou false,
-    "ready_to_close": true ou false
+    "ready_to_close": true ou false,
+    "confirms_data": true ou false
 }
 
 Critérios de classificação:
@@ -87,9 +120,33 @@ Critérios de classificação:
 - cold: lead tem empresa mas está distante ou céptico
 - unknown: informação insuficiente
 
+Critérios para wants_human (APENAS true se o LEAD pediu explicitamente):
+- "quero falar com um humano", "passem-me a alguém", "quero falar com uma pessoa real"
+- NUNCA marcar wants_human=true só porque a Lusambu ofereceu uma chamada com a equipa.
+  A Lusambu propor uma reunião não é o mesmo que o lead pedir um humano.
+
 Critérios para ready_to_close (APENAS true se pelo menos um destes se verificar):
 - Lead pede explicitamente uma proposta ou orçamento ("quero uma proposta", "quanto custa", "podem enviar proposta")
 - Lead pede uma reunião ou demonstração ("vamos marcar", "quero uma demo", "quando podemos falar")
+- Lead aceita uma reunião que a Lusambu propôs (responde "sim" / "ok" / "pode ser" a "tens disponibilidade?" ou equivalente)
 - Lead usa linguagem de decisão clara ("quero avançar", "como faço para começar", "vamos a isso", "como assino")
 NÃO marcar ready_to_close=true para: "interessante", "parece bem", "vou pensar", "faz sentido" — estes são warm, não fecho.
+
+Critérios para scheduled_time:
+- Preencher APENAS quando o LEAD indicou explicitamente um dia ou hora ("quarta de manhã", "amanhã às 15h", "qualquer dia desta semana").
+- "sim" / "ok" / "pode ser" sem especificar dia → null.
+- Nunca inventar — se o lead não disse, fica null.
+
+Critérios para confirms_data:
+- APENAS true se a mensagem mais recente da Lusambu foi um resumo de confirmação
+  (com "👤 Nome", "🏢 Empresa", "📅" e a pergunta "Está tudo correcto?")
+  E o lead respondeu com confirmação clara ("sim", "ok", "está certo", "correcto", "confirmo", "isso").
+- false se o lead corrigiu algum dado, perguntou outra coisa, mudou de tópico, ou
+  se a Lusambu ainda não apresentou o resumo de confirmação.
+- false também se o lead apenas disse "sim" a uma pergunta diferente (ex: "tens disponibilidade?").
+
+Critérios para name e company em closing:
+- Quando o lead responde com algo do tipo "João Silva, empresa Contaplus" ou "Sou o João da Contaplus",
+  extrai name="João Silva" e company="Contaplus".
+- Se o lead corrigir o nome ou empresa numa mensagem posterior, usa o valor mais recente.
 """
