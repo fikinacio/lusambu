@@ -19,12 +19,8 @@ llm_extractor = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=300, tempera
 
 
 def _closing_data_complete(lead_info: LeadInfo) -> bool:
-    """Lead forneceu todos os dados necessários para o agendamento."""
-    return bool(
-        lead_info.get("name")
-        and lead_info.get("company")
-        and lead_info.get("scheduled_time")
-    )
+    """Lead forneceu nome e empresa — suficiente para enviar o Calendly."""
+    return bool(lead_info.get("name") and lead_info.get("company"))
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +140,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     ):
         link = os.getenv("CALENDLY_LINK", "") or "https://calendly.com/contact-biscaplus/30min"
         link_msg = (
-            f"Perfeito. Usa este link para escolher o horário que te convém — "
+            f"Perfeito. Usa este link para escolheres o horário que te convém — "
             f"leva menos de um minuto: {link}"
         )
         response = AIMessage(content=link_msg)
@@ -301,8 +297,7 @@ async def escalate_node(state: LusambuState) -> LusambuState:
         f"🏢 Empresa: {lead.get('company') or '—'}\n"
         f"📦 Sector: {lead.get('sector') or '—'}\n"
         f"💡 Dor: {lead.get('pain_point') or '—'}\n"
-        f"🗓️ Preferência: {lead.get('scheduled_time') or '—'}\n"
-        f"🔗 Calendly: {calendly_status}\n"
+        f"🗓️ Agendamento: {'Calendly enviado ✅' if state.get('calendly_sent') else 'Pendente'}\n"
         f"{emoji} Classificação: {classification}\n\n"
         f"📌 Motivo: {reason}\n"
         f"📱 Número: {state['whatsapp_number']}\n\n"

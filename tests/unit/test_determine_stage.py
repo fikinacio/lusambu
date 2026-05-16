@@ -34,14 +34,13 @@ def test_escala_quando_duas_objeccoes():
 
 
 def test_escala_quando_fluxo_de_closing_termina():
-    """ready_to_close + nome + empresa + scheduled_time + confirmado + Calendly enviado => escala."""
+    """ready_to_close + nome + empresa + confirmado + Calendly enviado => escala."""
     lead = {
         "has_business": True,
         "wants_human": False,
         "ready_to_close": True,
         "name": "Ana",
         "company": "ImobAO",
-        "scheduled_time": "quarta de manhã",
     }
     assert _determine_stage(lead, 0, 4, data_confirmed=True, calendly_sent=True) == "escalate"
 
@@ -64,57 +63,25 @@ def test_escala_com_wants_human_tem_prioridade_sobre_objeccao():
 
 def test_closing_sub_etapa_1_falta_nome_e_empresa():
     """Aceitou a chamada mas ainda não disse nome nem empresa — pede ambos."""
-    lead = {
-        "has_business": True,
-        "ready_to_close": True,
-        "scheduled_time": "quarta de manhã",
-    }
+    lead = {"has_business": True, "ready_to_close": True}
     assert _determine_stage(lead, 0, 4) == "closing"
 
 
 def test_closing_sub_etapa_1_falta_so_empresa():
     """Tem nome mas falta empresa — ainda em closing (sub-etapa 1)."""
-    lead = {
-        "has_business": True,
-        "ready_to_close": True,
-        "name": "Pedro",
-        "scheduled_time": "quarta de manhã",
-    }
+    lead = {"has_business": True, "ready_to_close": True, "name": "Pedro"}
     assert _determine_stage(lead, 0, 4) == "closing"
 
 
-def test_closing_sub_etapa_2_falta_horario():
-    """Tem nome e empresa mas falta o dia/hora — sub-etapa 2."""
-    lead = {
-        "has_business": True,
-        "ready_to_close": True,
-        "name": "Pedro",
-        "company": "Contaplus",
-    }
-    assert _determine_stage(lead, 0, 4) == "closing"
-
-
-def test_closing_sub_etapa_3_dados_completos_sem_confirmacao():
-    """Dados todos recolhidos mas lead ainda não confirmou o resumo."""
-    lead = {
-        "has_business": True,
-        "ready_to_close": True,
-        "name": "Pedro",
-        "company": "Contaplus",
-        "scheduled_time": "segunda de manhã",
-    }
+def test_closing_sub_etapa_2_dados_completos_sem_confirmacao():
+    """Nome e empresa recolhidos mas lead ainda não confirmou o resumo."""
+    lead = {"has_business": True, "ready_to_close": True, "name": "Pedro", "company": "Contaplus"}
     assert _determine_stage(lead, 0, 4, data_confirmed=False, calendly_sent=False) == "closing"
 
 
-def test_closing_sub_etapa_4_confirmado_mas_calendly_nao_enviado():
+def test_closing_sub_etapa_3_confirmado_mas_calendly_nao_enviado():
     """Lead confirmou mas o link ainda não foi enviado — continua em closing."""
-    lead = {
-        "has_business": True,
-        "ready_to_close": True,
-        "name": "Pedro",
-        "company": "Contaplus",
-        "scheduled_time": "segunda de manhã",
-    }
+    lead = {"has_business": True, "ready_to_close": True, "name": "Pedro", "company": "Contaplus"}
     assert _determine_stage(lead, 0, 4, data_confirmed=True, calendly_sent=False) == "closing"
 
 
