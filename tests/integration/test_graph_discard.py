@@ -4,7 +4,7 @@ Lead sem empresa → lusambu_node responde → discard_node envia despedida → 
 Redis substituído por MemorySaver. LLM, Evolution API e Supabase são mockados.
 """
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage
 

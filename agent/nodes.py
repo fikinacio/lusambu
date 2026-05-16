@@ -64,6 +64,11 @@ def _determine_stage(lead_info: LeadInfo, objection_count: int, turn_count: int)
     if lead_info.get("wants_human") or objection_count >= 2:
         return "escalate"
     if lead_info.get("ready_to_close"):
+        # Antes de escalar, garante que o nome e o horário preferido foram recolhidos.
+        # O Fidel precisa destes dados para fazer a chamada — sem eles, fica em "closing"
+        # e a Lusambu pergunta-os uma de cada vez.
+        if not lead_info.get("name") or not lead_info.get("scheduled_time"):
+            return "closing"
         return "escalate"
     if lead_info.get("is_objecting"):
         return "objection"
@@ -185,10 +190,11 @@ async def escalate_node(state: LusambuState) -> LusambuState:
 
     summary = (
         f"🔔 *Lusambu — Intervenção Necessária*\n\n"
-        f"👤 Nome: {lead.get('name', '—')}\n"
-        f"🏢 Empresa: {lead.get('company', '—')}\n"
-        f"📦 Sector: {lead.get('sector', '—')}\n"
-        f"💡 Dor: {lead.get('pain_point', '—')}\n"
+        f"👤 Nome: {lead.get('name') or '—'}\n"
+        f"🏢 Empresa: {lead.get('company') or '—'}\n"
+        f"📦 Sector: {lead.get('sector') or '—'}\n"
+        f"💡 Dor: {lead.get('pain_point') or '—'}\n"
+        f"🗓️ Preferência: {lead.get('scheduled_time') or '—'}\n"
         f"{emoji} Classificação: {classification}\n\n"
         f"📌 Motivo: {reason}\n"
         f"📱 Número: {state['whatsapp_number']}\n\n"

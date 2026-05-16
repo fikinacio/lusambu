@@ -3,7 +3,7 @@ Integração: fluxo completo de escalação.
 Três cenários: quer humano, pronto para fechar, objecção repetida.
 """
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -24,10 +24,11 @@ def _extractor_quer_humano() -> AIMessage:
 
 
 def _extractor_pronto_fechar() -> AIMessage:
+    # Lead já indicou nome e horário preferido — _determine_stage escala directamente.
     return AIMessage(content=(
         '{"name": "Ana", "has_business": true, "company": "ImobAO", "sector": "Imobiliária", '
-        '"pain_point": "Qualificação lenta", "size": "8", "classification": "hot", '
-        '"is_objecting": false, "wants_human": false, "ready_to_close": true}'
+        '"pain_point": "Qualificação lenta", "size": "8", "scheduled_time": "quarta de manhã", '
+        '"classification": "hot", "is_objecting": false, "wants_human": false, "ready_to_close": true}'
     ))
 
 
