@@ -18,11 +18,14 @@ def get_supabase() -> Client:
     return _supabase
 
 
+_TRANSIENT_FIELDS = {"confirms_data"}  # campos do LLM que não existem como colunas no DB
+
+
 async def upsert_lead(lead_data: dict) -> bool:
     """Insere ou actualiza lead na tabela lusambu_leads. Chave: 'whatsapp'."""
     try:
         db = get_supabase()
-        clean_data = {k: v for k, v in lead_data.items() if v is not None}
+        clean_data = {k: v for k, v in lead_data.items() if v is not None and k not in _TRANSIENT_FIELDS}
         clean_data["last_contact_at"] = datetime.now(timezone.utc).isoformat()
         db.table("lusambu_leads").upsert(clean_data, on_conflict="whatsapp").execute()
         logger.info(f"Lead guardado: {clean_data.get('whatsapp', '—')}")
