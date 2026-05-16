@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     CHECKPOINT_DB_PATH: str = "/data/checkpoints.sqlite"
     DASHBOARD_KEY: str = ""
     CALENDLY_LINK: str = ""
+    OPENAI_API_KEY: str = ""  # necessário para RAG; deixar vazio desactiva RAG
 
 
 settings = Settings()

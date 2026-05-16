@@ -10,6 +10,7 @@ from .state import LusambuState, LeadInfo
 from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
 from integrations.supabase_client import upsert_lead
+from integrations.rag import consultar_conhecimento
 
 logger = logging.getLogger(__name__)
 
@@ -176,14 +177,34 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
             "calendly_sent": True,
         }
 
+    # ---- RAG: contexto de serviços/casos quando relevante ----
+    rag_context = ""
+    current_stage = state.get("stage", "qualify")
+    if current_stage not in ("closing", "discard", "escalate", "end"):
+        last_human = next(
+            (m.content for m in reversed(recent_messages) if isinstance(m, HumanMessage)),
+            "",
+        )
+        if last_human:
+            rag_context = await consultar_conhecimento(last_human) or ""
+
     # ---- Caminho normal: gerar resposta com LLM ----
     system = SYSTEM_PROMPT.format(
-        stage=state.get("stage", "qualify"),
+        stage=current_stage,
         lead_info=json.dumps(extracted_after_user, ensure_ascii=False, default=str),
         objection_count=objection_count,
         prompt_variant=variant or "A",
         pitch_instructions=PITCH_B if variant == "B" else PITCH_A,
     )
+
+    if rag_context:
+        system += (
+            "\n\n---\nCONHECIMENTO BISCA+ (informação verificada sobre serviços e casos reais):\n"
+            + rag_context
+            + "\n---\n"
+            "Usa este contexto se o lead perguntou sobre serviços, sectores ou clientes. "
+            "Integra naturalmente — não recites a lista completa."
+        )
 
     messages_for_llm = [SystemMessage(content=system)] + recent_messages
     response = await llm.ainvoke(messages_for_llm)
