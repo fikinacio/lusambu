@@ -167,6 +167,8 @@ async def main() -> None:
                 "prompt_variant": "",
                 "escalation_reason": "",
                 "fidel_notified": False,
+                "data_confirmed": False,
+                "calendly_sent": False,
             }
         elif existing.values:
             state_input = {"messages": [HumanMessage(content=user_input)]}
@@ -182,6 +184,8 @@ async def main() -> None:
                 "prompt_variant": "",
                 "escalation_reason": "",
                 "fidel_notified": False,
+                "data_confirmed": False,
+                "calendly_sent": False,
             }
 
         try:

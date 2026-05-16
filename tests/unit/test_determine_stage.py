@@ -33,16 +33,17 @@ def test_escala_quando_duas_objeccoes():
     assert _determine_stage(lead, 2, 3) == "escalate"
 
 
-def test_escala_quando_pronto_para_fechar_com_dados_completos():
-    """ready_to_close + nome + scheduled_time => escala (Fidel tem o que precisa)."""
+def test_escala_quando_fluxo_de_closing_termina():
+    """ready_to_close + nome + empresa + scheduled_time + confirmado + Calendly enviado => escala."""
     lead = {
         "has_business": True,
         "wants_human": False,
         "ready_to_close": True,
         "name": "Ana",
+        "company": "ImobAO",
         "scheduled_time": "quarta de manhã",
     }
-    assert _determine_stage(lead, 0, 4) == "escalate"
+    assert _determine_stage(lead, 0, 4, data_confirmed=True, calendly_sent=True) == "escalate"
 
 
 def test_escala_por_turnos_excessivos():
@@ -61,8 +62,8 @@ def test_escala_com_wants_human_tem_prioridade_sobre_objeccao():
 # Closing — recolha de dados antes de escalar
 # ---------------------------------------------------------------------------
 
-def test_closing_quando_pronto_para_fechar_sem_nome():
-    """Aceitou a chamada mas ainda não disse o nome — fica em closing para o pedir."""
+def test_closing_sub_etapa_1_falta_nome_e_empresa():
+    """Aceitou a chamada mas ainda não disse nome nem empresa — pede ambos."""
     lead = {
         "has_business": True,
         "ready_to_close": True,
@@ -71,20 +72,50 @@ def test_closing_quando_pronto_para_fechar_sem_nome():
     assert _determine_stage(lead, 0, 4) == "closing"
 
 
-def test_closing_quando_pronto_para_fechar_sem_horario():
-    """Aceitou a chamada e tem nome mas não indicou dia/hora — fica em closing."""
+def test_closing_sub_etapa_1_falta_so_empresa():
+    """Tem nome mas falta empresa — ainda em closing (sub-etapa 1)."""
     lead = {
         "has_business": True,
         "ready_to_close": True,
         "name": "Pedro",
+        "scheduled_time": "quarta de manhã",
     }
     assert _determine_stage(lead, 0, 4) == "closing"
 
 
-def test_closing_quando_pronto_para_fechar_sem_dados_nenhuns():
-    """ready_to_close=true por aceitar uma chamada mas sem nome nem horário."""
-    lead = {"has_business": True, "ready_to_close": True}
+def test_closing_sub_etapa_2_falta_horario():
+    """Tem nome e empresa mas falta o dia/hora — sub-etapa 2."""
+    lead = {
+        "has_business": True,
+        "ready_to_close": True,
+        "name": "Pedro",
+        "company": "Contaplus",
+    }
     assert _determine_stage(lead, 0, 4) == "closing"
+
+
+def test_closing_sub_etapa_3_dados_completos_sem_confirmacao():
+    """Dados todos recolhidos mas lead ainda não confirmou o resumo."""
+    lead = {
+        "has_business": True,
+        "ready_to_close": True,
+        "name": "Pedro",
+        "company": "Contaplus",
+        "scheduled_time": "segunda de manhã",
+    }
+    assert _determine_stage(lead, 0, 4, data_confirmed=False, calendly_sent=False) == "closing"
+
+
+def test_closing_sub_etapa_4_confirmado_mas_calendly_nao_enviado():
+    """Lead confirmou mas o link ainda não foi enviado — continua em closing."""
+    lead = {
+        "has_business": True,
+        "ready_to_close": True,
+        "name": "Pedro",
+        "company": "Contaplus",
+        "scheduled_time": "segunda de manhã",
+    }
+    assert _determine_stage(lead, 0, 4, data_confirmed=True, calendly_sent=False) == "closing"
 
 
 def test_wants_human_escala_mesmo_sem_dados():

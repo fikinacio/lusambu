@@ -105,6 +105,8 @@ def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuStat
         "prompt_variant": "",
         "escalation_reason": "",
         "fidel_notified": False,
+        "data_confirmed": False,
+        "calendly_sent": False,
     }
 
 

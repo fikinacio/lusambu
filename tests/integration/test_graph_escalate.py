@@ -96,7 +96,7 @@ async def test_escalacao_por_pedido_de_humano(grafo):
 # ---------------------------------------------------------------------------
 
 async def test_escalacao_por_fecho(grafo):
-    """ready_to_close=True → escala para Fidel fechar o negócio."""
+    """ready_to_close + closing completo (dados confirmados + Calendly enviado) => escala."""
     with patch("agent.nodes.llm") as mock_llm, \
          patch("agent.nodes.llm_extractor") as mock_extractor, \
          patch("agent.nodes.send_whatsapp_message", new_callable=AsyncMock), \
@@ -112,10 +112,12 @@ async def test_escalacao_por_fecho(grafo):
             "messages": [HumanMessage(content="Quero avançar, como fazemos?")],
             "whatsapp_number": "244923102",
             "lead_info": {},
-            "stage": "pitch",
+            "stage": "closing",
             "objection_count": 0,
             "escalation_reason": "",
             "fidel_notified": False,
+            "data_confirmed": True,
+            "calendly_sent": True,   # simula que o link já foi enviado em iteração anterior
         }
 
         result = await grafo.ainvoke(state, config=config)

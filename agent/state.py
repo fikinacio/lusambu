@@ -15,6 +15,7 @@ class LeadInfo(TypedDict, total=False):
     is_objecting: bool
     wants_human: bool
     ready_to_close: bool
+    confirms_data: bool        # lead respondeu "sim" ao resumo de confirmação (turno actual)
 
 
 class LusambuState(TypedDict):
@@ -28,3 +29,5 @@ class LusambuState(TypedDict):
     prompt_variant: str
     escalation_reason: str
     fidel_notified: bool
+    data_confirmed: bool       # lead confirmou o resumo de dados (sticky — uma vez true, fica true)
+    calendly_sent: bool        # link Calendly já foi enviado nesta conversa

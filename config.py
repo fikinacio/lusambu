@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     FIDEL_WHATSAPP_NUMBER: str
     CHECKPOINT_DB_PATH: str = "/data/checkpoints.sqlite"
     DASHBOARD_KEY: str = ""
+    CALENDLY_LINK: str = ""
 
 
 settings = Settings()
