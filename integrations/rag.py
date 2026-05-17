@@ -21,8 +21,8 @@ def _get_oai() -> AsyncOpenAI | None:
 
 async def consultar_conhecimento(
     pergunta: str,
-    top_k: int = 3,
-    limiar: float = 0.60,
+    top_k: int = 4,
+    limiar: float = 0.50,
 ) -> str | None:
     """
     Embede a pergunta e devolve os chunks mais relevantes da tabela documents.
