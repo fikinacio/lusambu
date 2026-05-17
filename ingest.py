@@ -11,8 +11,19 @@ Uso:
 """
 import argparse
 import os
+import ssl
 import sys
 import time
+import httpx
+
+# Rede corporativa com inspecção TLS — força verify=False em todos os clientes httpx
+ssl._create_default_https_context = ssl._create_unverified_context
+
+_orig_client_init = httpx.Client.__init__
+def _no_ssl_init(self, *args, **kwargs):
+    kwargs['verify'] = False
+    _orig_client_init(self, *args, **kwargs)
+httpx.Client.__init__ = _no_ssl_init
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +220,7 @@ def main(reset: bool = False) -> None:
         print("ERRO: SUPABASE_URL ou SUPABASE_KEY não encontradas no .env")
         sys.exit(1)
 
-    oai = OpenAI(api_key=openai_key)
+    oai = OpenAI(api_key=openai_key, http_client=httpx.Client(verify=False))
     db = create_client(supabase_url, supabase_key)
 
     if reset:
@@ -238,7 +249,7 @@ def main(reset: bool = False) -> None:
         print("ok")
         time.sleep(0.3)  # evita rate limiting
 
-    print(f"\n✓ {len(CHUNKS)} chunks ingeridos com sucesso.")
+    print(f"\n[OK] {len(CHUNKS)} chunks ingeridos com sucesso.")
 
 
 if __name__ == "__main__":

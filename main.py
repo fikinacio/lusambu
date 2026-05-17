@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
@@ -158,12 +159,29 @@ async def health():
 
 def _badge(value: str, mapping: dict, default: str = "#888") -> str:
     color = mapping.get((value or "").lower(), default)
-    return f'<span style="background:{color};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px">{value or "—"}</span>'
+    label = (value or "—").upper()
+    return f'<span style="background:{color};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px">{label}</span>'
 
 
-_CLS_COLORS  = {"hot": "#e53935", "warm": "#fb8c00", "cold": "#1e88e5", "unknown": "#888"}
-_STG_COLORS  = {"escalado": "#7b1fa2", "descartado": "#616161", "qualify": "#00897b",
-                "pitch": "#1565c0", "objection": "#f57f17", "end": "#616161"}
+_CLS_COLORS = {"hot": "#e53935", "warm": "#fb8c00", "cold": "#1e88e5", "unknown": "#888"}
+_STG_COLORS = {"escalado": "#7b1fa2", "descartado": "#616161", "qualify": "#00897b",
+               "pitch": "#1565c0", "objection": "#f57f17", "end": "#616161"}
+
+
+def _build_stats_and_rows(leads: list[dict]) -> dict:
+    total = len(leads)
+    hot   = sum(1 for l in leads if (l.get("classification") or "").lower() == "hot")
+    warm  = sum(1 for l in leads if (l.get("classification") or "").lower() == "warm")
+    esc   = sum(1 for l in leads if (l.get("status") or "").lower() == "escalado")
+    return {"total": total, "hot": hot, "warm": warm, "escalados": esc, "leads": leads}
+
+
+@app.get("/dashboard/data")
+async def dashboard_data(key: str = ""):
+    if settings.DASHBOARD_KEY and key != settings.DASHBOARD_KEY:
+        raise HTTPException(status_code=403, detail="Chave inválida")
+    leads = await get_all_leads()
+    return JSONResponse(_build_stats_and_rows(leads))
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -171,28 +189,7 @@ async def dashboard(key: str = ""):
     if settings.DASHBOARD_KEY and key != settings.DASHBOARD_KEY:
         raise HTTPException(status_code=403, detail="Chave inválida")
 
-    leads = await get_all_leads()
-    total = len(leads)
-    hot   = sum(1 for l in leads if (l.get("classification") or "").lower() == "hot")
-    warm  = sum(1 for l in leads if (l.get("classification") or "").lower() == "warm")
-    esc   = sum(1 for l in leads if (l.get("status") or "").lower() == "escalado")
-
-    rows = ""
-    for l in leads:
-        last = (l.get("last_contact_at") or "")[:16].replace("T", " ")
-        rows += f"""
-        <tr>
-          <td>{l.get("name") or "—"}</td>
-          <td>{l.get("company") or "—"}</td>
-          <td>{l.get("sector") or "—"}</td>
-          <td>{_badge(l.get("classification"), _CLS_COLORS)}</td>
-          <td>{_badge(l.get("status") or l.get("stage"), _STG_COLORS)}</td>
-          <td style="font-size:12px;color:#aaa">{l.get("pain_point") or "—"}</td>
-          <td style="font-size:12px">{l.get("whatsapp") or "—"}</td>
-          <td style="font-size:12px;color:#aaa">{last}</td>
-          <td style="text-align:center">{l.get("followup_count") or 0}</td>
-          <td style="text-align:center;font-weight:700">{l.get("prompt_variant") or "—"}</td>
-        </tr>"""
+    key_param = f"?key={key}" if key else ""
 
     html = f"""<!DOCTYPE html>
 <html lang="pt"><head>
@@ -201,8 +198,10 @@ async def dashboard(key: str = ""):
 <style>
   body{{font-family:system-ui,sans-serif;background:#0f0f0f;color:#e0e0e0;margin:0;padding:24px}}
   h1{{color:#fff;margin-bottom:4px}}
-  .sub{{color:#888;font-size:14px;margin-bottom:24px}}
-  .stats{{display:flex;gap:16px;margin-bottom:24px}}
+  .sub{{color:#888;font-size:13px;margin-bottom:24px;display:flex;align-items:center;gap:10px}}
+  .dot{{width:8px;height:8px;border-radius:50%;background:#4caf50;display:inline-block;animation:pulse 2s infinite}}
+  @keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.3}}}}
+  .stats{{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}}
   .stat{{background:#1e1e1e;border-radius:10px;padding:16px 24px;min-width:100px}}
   .stat .n{{font-size:28px;font-weight:700;color:#fff}}
   .stat .l{{font-size:12px;color:#888}}
@@ -211,22 +210,82 @@ async def dashboard(key: str = ""):
   td{{padding:10px 14px;border-bottom:1px solid #2a2a2a;vertical-align:middle}}
   tr:last-child td{{border-bottom:none}}
   tr:hover td{{background:#252525}}
+  .empty{{text-align:center;padding:40px;color:#555}}
 </style>
 </head><body>
 <h1>🤖 Lusambu — Pipeline de Leads</h1>
-<p class="sub">Actualiza ao recarregar a página</p>
+<div class="sub">
+  <span class="dot"></span>
+  <span id="status">A carregar...</span>
+</div>
 <div class="stats">
-  <div class="stat"><div class="n">{total}</div><div class="l">Total</div></div>
-  <div class="stat"><div class="n" style="color:#e53935">{hot}</div><div class="l">Hot 🔥</div></div>
-  <div class="stat"><div class="n" style="color:#fb8c00">{warm}</div><div class="l">Warm 🟡</div></div>
-  <div class="stat"><div class="n" style="color:#7b1fa2">{esc}</div><div class="l">Escalados</div></div>
+  <div class="stat"><div class="n" id="s-total">—</div><div class="l">Total</div></div>
+  <div class="stat"><div class="n" id="s-hot" style="color:#e53935">—</div><div class="l">Hot 🔥</div></div>
+  <div class="stat"><div class="n" id="s-warm" style="color:#fb8c00">—</div><div class="l">Warm 🟡</div></div>
+  <div class="stat"><div class="n" id="s-esc" style="color:#7b1fa2">—</div><div class="l">Escalados</div></div>
 </div>
 <table>
   <thead><tr>
     <th>Nome</th><th>Empresa</th><th>Sector</th><th>Class.</th>
     <th>Stage</th><th>Dor</th><th>WhatsApp</th><th>Último contacto</th><th>Follow-ups</th><th>Variante</th>
   </tr></thead>
-  <tbody>{rows}</tbody>
+  <tbody id="leads-body"><tr><td colspan="10" class="empty">A carregar leads...</td></tr></tbody>
 </table>
+
+<script>
+const CLS = {{hot:"#e53935",warm:"#fb8c00",cold:"#1e88e5",unknown:"#888"}};
+const STG = {{escalado:"#7b1fa2",descartado:"#616161",qualify:"#00897b",pitch:"#1565c0",objection:"#f57f17",end:"#616161"}};
+
+function badge(val, map) {{
+  const v = (val||"").toLowerCase();
+  const color = map[v] || "#888";
+  return `<span style="background:${{color}};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px">${{(val||"—").toUpperCase()}}</span>`;
+}}
+
+function ts(iso) {{
+  if (!iso) return "—";
+  return iso.slice(0,16).replace("T"," ");
+}}
+
+async function refresh() {{
+  try {{
+    const r = await fetch("/dashboard/data{key_param}");
+    if (!r.ok) {{ document.getElementById("status").textContent = "Erro ao carregar (" + r.status + ")"; return; }}
+    const d = await r.json();
+
+    document.getElementById("s-total").textContent = d.total;
+    document.getElementById("s-hot").textContent   = d.hot;
+    document.getElementById("s-warm").textContent  = d.warm;
+    document.getElementById("s-esc").textContent   = d.escalados;
+
+    const tbody = document.getElementById("leads-body");
+    if (!d.leads || d.leads.length === 0) {{
+      tbody.innerHTML = '<tr><td colspan="10" class="empty">Nenhum lead ainda.</td></tr>';
+    }} else {{
+      tbody.innerHTML = d.leads.map(l => `
+        <tr>
+          <td>${{l.name||"—"}}</td>
+          <td>${{l.company||"—"}}</td>
+          <td>${{l.sector||"—"}}</td>
+          <td>${{badge(l.classification, CLS)}}</td>
+          <td>${{badge(l.status||l.stage, STG)}}</td>
+          <td style="font-size:12px;color:#aaa">${{l.pain_point||"—"}}</td>
+          <td style="font-size:12px">${{l.whatsapp||"—"}}</td>
+          <td style="font-size:12px;color:#aaa">${{ts(l.last_contact_at)}}</td>
+          <td style="text-align:center">${{l.followup_count||0}}</td>
+          <td style="text-align:center;font-weight:700">${{l.prompt_variant||"—"}}</td>
+        </tr>`).join("");
+    }}
+
+    const now = new Date().toLocaleTimeString("pt-PT");
+    document.getElementById("status").textContent = "Actualizado às " + now + " · próxima actualização em 30s";
+  }} catch(e) {{
+    document.getElementById("status").textContent = "Erro de rede — a tentar novamente...";
+  }}
+}}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
 </body></html>"""
     return HTMLResponse(content=html)

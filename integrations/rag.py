@@ -22,7 +22,7 @@ def _get_oai() -> AsyncOpenAI | None:
 async def consultar_conhecimento(
     pergunta: str,
     top_k: int = 3,
-    limiar: float = 0.70,
+    limiar: float = 0.60,
 ) -> str | None:
     """
     Embede a pergunta e devolve os chunks mais relevantes da tabela documents.
@@ -31,6 +31,7 @@ async def consultar_conhecimento(
     """
     client = _get_oai()
     if client is None:
+        logger.warning("RAG: OPENAI_API_KEY não configurada — a saltar.")
         return None
 
     try:
@@ -46,10 +47,13 @@ async def consultar_conhecimento(
             "match_count": top_k,
         }).execute()
 
-        chunks = [
-            r for r in (result.data or [])
-            if r.get("similarity", 0) >= limiar
-        ]
+        todos = result.data or []
+        chunks = [r for r in todos if r.get("similarity", 0) >= limiar]
+
+        logger.info(
+            f"RAG: {len(todos)} resultado(s) — {len(chunks)} acima do limiar {limiar} "
+            f"| top similarity: {max((r.get('similarity', 0) for r in todos), default=0):.3f}"
+        )
 
         if not chunks:
             return None
