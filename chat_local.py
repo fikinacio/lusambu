@@ -51,16 +51,17 @@ os.environ.setdefault("FIDEL_WHATSAPP_NUMBER", "244900000000")
 # 2. Imports do projecto (depois de definir env vars)
 # ---------------------------------------------------------------------------
 
-from unittest.mock import patch
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
-from langchain_anthropic import ChatAnthropic
+from langchain_anthropic import ChatAnthropic  # noqa: F401  (usado em _llm_no_ssl)
 import httpx
 import anthropic as _anthropic
 
 import integrations.evolution as evo
 import integrations.supabase_client as sb
 import agent.nodes as _nodes
+import sales_agent.sales_node as _sales_node
+import sales_agent.supervisor as _supervisor
 
 
 def _llm_no_ssl(model: str, max_tokens: int, temperature: float) -> ChatAnthropic:
@@ -76,6 +77,8 @@ def _llm_no_ssl(model: str, max_tokens: int, temperature: float) -> ChatAnthropi
 
 _nodes.llm = _llm_no_ssl("claude-sonnet-4-6", 500, 0.7)
 _nodes.llm_extractor = _llm_no_ssl("claude-sonnet-4-6", 300, 0.0)
+_sales_node.llm_sales = _llm_no_ssl("claude-sonnet-4-6", 500, 0.3)
+_supervisor.llm_supervisor = _llm_no_ssl("claude-sonnet-4-6", 300, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +88,15 @@ _nodes.llm_extractor = _llm_no_ssl("claude-sonnet-4-6", 300, 0.0)
 async def _print_message(number: str, text: str) -> bool:
     print(f"\n\033[96mLusambu →\033[0m {text}\n")
     return True
+
+
+async def _print_sales_message(number: str, text: str) -> bool:
+    print(f"\n\033[92mSales Agent →\033[0m {text}\n")
+    return True
+
+
+async def _no_op(*args, **kwargs) -> None:
+    pass
 
 
 async def _print_lead(data: dict) -> bool:
@@ -125,12 +137,15 @@ async def main() -> None:
     from agent.graph import create_graph
     graph = create_graph(MemorySaver())
 
-    # Substitui no namespace de agent.nodes — é lá que as funções foram importadas
-    # (substituir nos módulos evo/sb não chegaria porque nodes.py já copiou as referências)
+    # Substitui no namespace de agent.nodes e sales_agent
+    # (as funções já foram importadas por referência — substituir no módulo de origem não chegaria)
     _nodes.send_whatsapp_message = _print_message
     _nodes.notify_fidel = _print_fidel
     _nodes.upsert_lead = _print_lead
     _nodes._human_delay = _no_delay
+    _sales_node.send_whatsapp_message = _print_sales_message
+    _sales_node.send_typing_indicator = _no_op
+    _sales_node._human_delay = _no_delay
 
     number = "local_244900000000"
     config = {"configurable": {"thread_id": number}}
@@ -169,6 +184,8 @@ async def main() -> None:
                 "fidel_notified": False,
                 "data_confirmed": False,
                 "calendly_sent": False,
+                "supervisor_decision": {},
+                "sales_agent_active": False,
             }
         elif existing.values:
             state_input = {"messages": [HumanMessage(content=user_input)]}
@@ -186,6 +203,8 @@ async def main() -> None:
                 "fidel_notified": False,
                 "data_confirmed": False,
                 "calendly_sent": False,
+                "supervisor_decision": {},
+                "sales_agent_active": False,
             }
 
         try:
@@ -193,6 +212,15 @@ async def main() -> None:
         except Exception as e:
             print(f"\n\033[91m[erro] {e}\033[0m\n")
             continue
+
+        # Debug: estado do pipeline após cada turno
+        stage = result.get("stage", "?")
+        sales_active = result.get("sales_agent_active", False)
+        sup = result.get("supervisor_decision", {})
+        sup_estado = sup.get("estado", "") if sup else ""
+        agent_label = "\033[92mSales Agent\033[0m" if sales_active else "\033[96mLusambu\033[0m"
+        sup_info = f" | supervisor={sup_estado}" if sup_estado else ""
+        print(f"  \033[90m[pipeline] agente={agent_label}\033[90m | stage={stage}{sup_info}\033[0m")
 
         if result.get("stage") == "end":
             print("\033[90m[conversa encerrada pelo agente]\033[0m")

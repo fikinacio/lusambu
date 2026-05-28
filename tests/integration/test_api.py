@@ -1,7 +1,7 @@
 """
 Integração: endpoints FastAPI.
 Usa httpx.AsyncClient com ASGITransport — sem servidor real.
-O grafo e o Redis são mockados para não precisar de infra.
+O SQLite e o LLM são mockados para não precisar de infra.
 """
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -24,9 +24,20 @@ def _payload_valido(numero: str, texto: str, from_me: bool = False) -> dict:
 async def client():
     """
     Cliente de teste com o grafo completamente mockado.
-    Não toca no Redis nem no LLM — testa apenas o comportamento do endpoint.
+    Não toca no SQLite nem no LLM — testa apenas o comportamento do endpoint.
+
+    main.py usa AsyncSqliteSaver (não Redis) como context manager assíncrono:
+      async with AsyncSqliteSaver.from_conn_string(path) as checkpointer: ...
+    O mock simula esse padrão e devolve um MemorySaver como checkpointer.
     """
-    with patch("agent.graph.AsyncRedisSaver") as mock_redis, \
+    # AsyncSqliteSaver é usado como async context manager — simular __aenter__/__aexit__
+    mock_saver = AsyncMock()
+    mock_saver.__aenter__ = AsyncMock(return_value=MemorySaver())
+    mock_saver.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("main.AsyncSqliteSaver") as mock_sqlite, \
+         patch("main.AsyncIOScheduler") as mock_scheduler_cls, \
+         patch("os.makedirs"), \
          patch("agent.nodes.llm"), \
          patch("agent.nodes.llm_extractor"), \
          patch("agent.nodes.send_whatsapp_message", new_callable=AsyncMock), \
@@ -34,7 +45,9 @@ async def client():
          patch("agent.nodes.upsert_lead", new_callable=AsyncMock), \
          patch("agent.nodes._human_delay", new_callable=AsyncMock):
 
-        mock_redis.from_conn_string.return_value = MemorySaver()
+        mock_sqlite.from_conn_string.return_value = mock_saver
+        mock_sched = MagicMock()
+        mock_scheduler_cls.return_value = mock_sched
 
         from main import app
         async with httpx.AsyncClient(

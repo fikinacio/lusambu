@@ -31,3 +31,5 @@ class LusambuState(TypedDict):
     fidel_notified: bool
     data_confirmed: bool       # lead confirmou o resumo de dados (sticky — uma vez true, fica true)
     calendly_sent: bool        # link Calendly já foi enviado nesta conversa
+    supervisor_decision: dict  # última análise do supervisor de vendas
+    sales_agent_active: bool   # Sales Agent tomou conta da conversa
