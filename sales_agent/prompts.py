@@ -73,18 +73,29 @@ passa_para_sales → o Sales Agent deve entrar se:
 - O lead mostrou curiosidade sobre solução ou próximos passos
 - Basta UM destes: lead pediu preço, perguntou "como funciona", disse "precisava de algo assim"
 
-escala_para_fidel → notificar Fidel se:
-- Lead mencionou valores acima de 300.000 AOA de setup
+escala_para_fidel → notificar Fidel APENAS quando as três condições são verdadeiras:
+1. O lead confirmou explicitamente que quer avançar — "sim", "pode enviar", "quero",
+   "vamos avançar", "fecha-se", ou equivalente inequívoco de aceitação
+2. Os valores foram apresentados E não foram contestados após serem apresentados
+   (silêncio ou mudança de assunto não conta — tem de haver aceitação activa)
+3. O lead forneceu pelo menos um contacto: email, telefone, ou confirmou
+   que quer receber a proposta pelo WhatsApp
+
+Enquanto qualquer uma destas três condições não estiver satisfeita → passa_para_sales.
+O Sales Agent continua. Apresentar preços ou propor reunião NÃO é trigger de escalada.
+
+Escalar também se (independente das três condições acima):
+- Lead mencionou valores de setup acima de 300.000 AOA
 - Lead mencionou mensalidade acima de 100.000 AOA
 - Lead quer negociar contrato ou condições especiais
 - Situação de conflito ou reclamação
-- O Sales Agent confirmou valores de setup e mensalidade E prometeu enviar proposta ao lead —
-  Fidel precisa de aprovar e gerar o documento antes de qualquer envio.
-  Neste caso, preencher resumo_para_fidel com: nome do lead, empresa, solução escolhida,
-  setup e mensalidade confirmados, canal de entrega (WhatsApp, email, etc.)
+
+Quando escalar por proposta confirmada, preencher resumo_para_fidel com:
+nome do lead, empresa, solução escolhida, setup e mensalidade confirmados,
+canal de entrega (WhatsApp, email, etc.)
 
 conversa_encerrada → o agente para sem enviar mensagem ao lead se:
-- O Sales Agent já confirmou valores E o lead aceitou o pacote E foi prometida uma proposta
+- As três condições de escala_para_fidel estão satisfeitas (lead confirmou, valores aceites, contacto)
 - E o lead responde com mensagem curta de encerramento: "ok", "obrigado", "boa continuação",
   "até logo", "aguardo", "fico à espera", ou similar
 - Quando este estado é detectado, o Fidel é notificado automaticamente com o resumo do fecho.
