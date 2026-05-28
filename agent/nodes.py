@@ -271,7 +271,12 @@ async def discard_node(state: LusambuState) -> LusambuState:
 # ---------------------------------------------------------------------------
 
 async def escalate_node(state: LusambuState) -> LusambuState:
-    """Notifica Fidel via WhatsApp com contexto completo. Avisa o lead."""
+    """Notifica Fidel via WhatsApp com contexto completo.
+
+    Envia mensagem ao lead apenas no fluxo Lusambu (sem Calendly enviado e sem Sales Agent activo).
+    No fluxo Sales Agent (escala_para_fidel ou conversa_encerrada), o fecho é silencioso —
+    o Sales Agent já comunicou com o lead nesse turno.
+    """
     if state.get("fidel_notified"):
         return {**state, "stage": "end"}
 
@@ -289,7 +294,9 @@ async def escalate_node(state: LusambuState) -> LusambuState:
     else:
         reason = state.get("escalation_reason", "Lead qualificado")
 
-    calendly_status = "✅ enviado" if state.get("calendly_sent") else "—"
+    # Detalhes da proposta preenchidos pelo supervisor (solução, valores, canal de entrega)
+    sup_decision = state.get("supervisor_decision") or {}
+    sup_resumo = sup_decision.get("resumo_para_fidel", "")
 
     summary = (
         f"🔔 *Lusambu — Intervenção Necessária*\n\n"
@@ -304,11 +311,15 @@ async def escalate_node(state: LusambuState) -> LusambuState:
         f"👉 Entra directamente na conversa quando estiveres pronto."
     )
 
+    if sup_resumo:
+        summary += f"\n\n📋 Proposta: {sup_resumo}"
+
     await notify_fidel(summary)
 
-    # Se já enviámos o Calendly, não dizemos "vou passar ao especialista" — o lead já
-    # tem o que precisa para agendar. O follow-up humano só acontece após o agendamento.
-    if not state.get("calendly_sent"):
+    # Enviar mensagem ao lead APENAS no fluxo Lusambu sem Calendly:
+    # - calendly_sent=True → lead já tem o link, não interromper
+    # - sales_agent_active=True → Sales Agent já comunicou neste turno; fecho é silencioso
+    if not state.get("calendly_sent") and not state.get("sales_agent_active"):
         await send_typing_indicator(state["whatsapp_number"])
         await _human_delay()
         await send_whatsapp_message(

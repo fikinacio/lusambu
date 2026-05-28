@@ -30,20 +30,22 @@ def _after_lusambu_router(state: LusambuState) -> str:
 
 
 def _after_supervisor_router(state: LusambuState) -> str:
-    """Supervisor decidiu: escala_para_fidel vai para escalate_node; o resto termina."""
+    """Supervisor decidiu: escalações e encerramento vão para escalate_node; o resto termina."""
     decision = state.get("supervisor_decision", {})
     estado = decision.get("estado", "continua_qualificacao")
-    if estado == "escala_para_fidel":
+    if estado in ("escala_para_fidel", "conversa_encerrada"):
         return "escalate"
     # passa_para_sales: flag já definida no supervisor_node; Sales Agent entra na PRÓXIMA mensagem
     return END
 
 
 def _after_sales_router(state: LusambuState) -> str:
-    """Sales Agent detectou threshold (desconto/valor): encaminha para escalate_node."""
+    """Sales Agent: threshold directo para escalate; Fidel já notificado encerra; resto → supervisor."""
     if state.get("stage") == "escalate":
         return "escalate"
-    return END
+    if state.get("fidel_notified"):
+        return END
+    return "supervisor"
 
 
 def create_graph(checkpointer: BaseCheckpointSaver):
@@ -84,6 +86,7 @@ def create_graph(checkpointer: BaseCheckpointSaver):
 
     builder.add_conditional_edges("sales_agent", _after_sales_router, {
         "escalate": "escalate",
+        "supervisor": "supervisor",
         END: END,
     })
 
