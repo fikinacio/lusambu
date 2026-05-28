@@ -78,7 +78,7 @@ def _llm_no_ssl(model: str, max_tokens: int, temperature: float) -> ChatAnthropi
 _nodes.llm = _llm_no_ssl("claude-sonnet-4-6", 500, 0.7)
 _nodes.llm_extractor = _llm_no_ssl("claude-sonnet-4-6", 300, 0.0)
 _sales_node.llm_sales = _llm_no_ssl("claude-sonnet-4-6", 500, 0.3)
-_supervisor.llm_supervisor = _llm_no_ssl("claude-sonnet-4-6", 300, 0.0)
+_supervisor.llm_supervisor = _llm_no_ssl("claude-sonnet-4-6", 512, 0.0)
 
 
 # ---------------------------------------------------------------------------

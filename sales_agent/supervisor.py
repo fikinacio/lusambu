@@ -9,7 +9,7 @@ from .prompts import SUPERVISOR_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
-llm_supervisor = ChatAnthropic(model="claude-sonnet-4-6", temperature=0)
+llm_supervisor = ChatAnthropic(model="claude-sonnet-4-6", temperature=0, max_tokens=512)
 
 
 def _format_history(messages: list) -> str:
@@ -45,7 +45,13 @@ Avalia o estado actual e devolve o JSON de decisão."""
             SystemMessage(content=SUPERVISOR_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
         ])
-        decisao = json.loads(response.content)
+        raw = response.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        decisao = json.loads(raw)
     except json.JSONDecodeError:
         logger.error(f"Supervisor: JSON inválido — {response.content[:200]}")
         decisao = {

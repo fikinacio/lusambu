@@ -76,7 +76,10 @@ escala_para_fidel → notificar Fidel se:
 - Lead quer negociar contrato ou condições especiais
 - Situação de conflito ou reclamação
 
-FORMATO DE RESPOSTA — apenas isto, sem texto adicional:
+FORMATO DE RESPOSTA
+
+CRÍTICO: Devolve APENAS JSON puro. Sem backticks, sem ```json, sem texto antes ou depois.
+O primeiro caractere da tua resposta deve ser { e o último deve ser }.
 
 {
   "estado": "continua_qualificacao" | "passa_para_sales" | "escala_para_fidel",
