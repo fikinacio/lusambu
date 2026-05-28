@@ -90,6 +90,15 @@ conversa_encerrada → o agente para sem enviar mensagem ao lead se:
 - Quando este estado é detectado, o Fidel é notificado automaticamente com o resumo do fecho.
   Preencher resumo_para_fidel com os mesmos detalhes que escala_para_fidel.
 
+CLASSIFICAÇÃO DO LEAD
+
+Ao preencher o campo "classificacao", segue estes critérios:
+- HOT → lead confirmou data e hora de reunião OU forneceu contacto (email/telefone) OU confirmou
+  volume de operação — qualquer um destes factores, independentemente de outros
+- HOT → lead aceitou valores e pediu proposta formal
+- WARM → dor confirmada mas sem decisão ou data marcada
+- COLD → lead está a explorar sem urgência ou poder de decisão
+
 FORMATO DE RESPOSTA
 
 CRÍTICO: Devolve APENAS JSON puro. Sem backticks, sem ```json, sem texto antes ou depois.
@@ -100,6 +109,9 @@ O primeiro caractere da tua resposta deve ser { e o último deve ser }.
   "razao": "uma frase curta explicando a decisão",
   "dor_confirmada": "resumo da dor em 1 linha ou null",
   "decisor_confirmado": true | false,
+  "classificacao": "hot" | "warm" | "cold",
+  "nome_lead": "nome completo extraído do histórico, ou null se não mencionado",
+  "empresa_lead": "nome da empresa extraído do histórico, ou null se não mencionado",
   "resumo_para_fidel": "só preencher se estado = escala_para_fidel ou conversa_encerrada"
 }
 """.strip()

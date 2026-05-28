@@ -281,7 +281,20 @@ async def escalate_node(state: LusambuState) -> LusambuState:
         return {**state, "stage": "end"}
 
     lead = state.get("lead_info", {})
-    classification = lead.get("classification", "—").upper()
+
+    # Detalhes da proposta preenchidos pelo supervisor
+    # — usados como fallback quando lead_info não tem dados (fluxo Sales Agent)
+    sup_decision = state.get("supervisor_decision") or {}
+    sup_resumo = sup_decision.get("resumo_para_fidel", "")
+
+    nome = lead.get("name") or sup_decision.get("nome_lead") or "a confirmar"
+    empresa = lead.get("company") or sup_decision.get("empresa_lead") or "a confirmar"
+
+    # Classificação: supervisor tem prioridade (vê a conversa completa incluindo Sales Agent)
+    sup_class = (sup_decision.get("classificacao") or "").upper()
+    lead_class = (lead.get("classification") or "—").upper()
+    classification = sup_class if sup_class in ("HOT", "WARM", "COLD") else lead_class
+
     emojis = {"HOT": "🔥", "WARM": "🟡", "COLD": "🔵"}
     emoji = emojis.get(classification, "⚪")
 
@@ -294,16 +307,12 @@ async def escalate_node(state: LusambuState) -> LusambuState:
     else:
         reason = state.get("escalation_reason", "Lead qualificado")
 
-    # Detalhes da proposta preenchidos pelo supervisor (solução, valores, canal de entrega)
-    sup_decision = state.get("supervisor_decision") or {}
-    sup_resumo = sup_decision.get("resumo_para_fidel", "")
-
     summary = (
         f"🔔 *Lusambu — Intervenção Necessária*\n\n"
-        f"👤 Nome: {lead.get('name') or '—'}\n"
-        f"🏢 Empresa: {lead.get('company') or '—'}\n"
+        f"👤 Nome: {nome}\n"
+        f"🏢 Empresa: {empresa}\n"
         f"📦 Sector: {lead.get('sector') or '—'}\n"
-        f"💡 Dor: {lead.get('pain_point') or '—'}\n"
+        f"💡 Dor: {lead.get('pain_point') or sup_decision.get('dor_confirmada') or '—'}\n"
         f"🗓️ Agendamento: {'Calendly enviado ✅' if state.get('calendly_sent') else 'Pendente'}\n"
         f"{emoji} Classificação: {classification}\n\n"
         f"📌 Motivo: {reason}\n"
