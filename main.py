@@ -76,6 +76,9 @@ def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:
 
         number = msg_data.get("key", {}).get("remoteJid", "")
         number = number.replace("@s.whatsapp.net", "").replace("@g.us", "")
+        # Remove device ID presente em contas multi-device / Meta-linked
+        # Ex: "244923456789:7" → "244923456789"
+        number = number.split(":")[0]
 
         message_obj = msg_data.get("message", {})
         text = (
@@ -108,6 +111,8 @@ def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuStat
         "fidel_notified": False,
         "data_confirmed": False,
         "calendly_sent": False,
+        "supervisor_decision": {},
+        "sales_agent_active": False,
     }
 
 

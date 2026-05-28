@@ -71,6 +71,17 @@ def test_remove_sufixo_grupo():
     assert number == "123456789"
 
 
+def test_remove_device_id_meta_linked():
+    """Contas WhatsApp ligadas ao Facebook/Meta enviam remoteJid com device ID.
+    Ex: '244923456789:7@s.whatsapp.net' → deve extrair '244923456789'.
+    Sem este fix o número fica '244923456789:7' e a resposta nunca é entregue."""
+    number, text = _parse_evolution_webhook(
+        _payload("244923456789:7@s.whatsapp.net", False, text="Olá, vi o anúncio no Facebook")
+    )
+    assert number == "244923456789"
+    assert text == "Olá, vi o anúncio no Facebook"
+
+
 def test_texto_com_espacos_e_removido():
     _, text = _parse_evolution_webhook(
         _payload("244923111111@s.whatsapp.net", False, text="  Olá  ")
