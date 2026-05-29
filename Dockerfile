@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY config.py main.py ./
 COPY agent ./agent
 COPY integrations ./integrations
+COPY sales_agent ./sales_agent
 
 # Volume para persistir os checkpoints SQLite entre redeploys
 RUN mkdir -p /data
