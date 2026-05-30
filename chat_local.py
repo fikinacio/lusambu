@@ -147,7 +147,7 @@ async def main() -> None:
     _sales_node.send_typing_indicator = _no_op
     _sales_node._human_delay = _no_delay
 
-    number = "local_244900000000"
+    number = os.getenv("TEST_WHATSAPP_NUMBER", "244923000000")
     config = {"configurable": {"thread_id": number}}
 
     border = "━" * 44
