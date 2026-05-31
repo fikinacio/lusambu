@@ -136,3 +136,72 @@ async def get_outbound_stale_leads(followup_count: int, hours: int) -> list[dict
     except Exception as e:
         logger.error(f"Erro ao buscar outbound stale leads (count={followup_count}): {e}")
         return []
+
+
+async def get_company_config() -> dict:
+    """Lê todos os pares chave-valor de company_config e devolve como dict."""
+    try:
+        db = get_supabase()
+        result = db.table("company_config").select("key, value").execute()
+        return {row["key"]: row["value"] for row in (result.data or [])}
+    except Exception as e:
+        logger.error(f"Erro ao carregar company_config: {e}")
+        return {}
+
+
+async def get_lead_for_proposal(whatsapp: str) -> Optional[dict]:
+    """Lê dados completos do lead para gerar proposta."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("lusambu_leads")
+            .select("whatsapp, name, company, sector, pain_point, notas_sales, valor_negociado, status")
+            .eq("whatsapp", whatsapp)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Erro ao ler lead para proposta ({whatsapp}): {e}")
+        return None
+
+
+async def save_proposal_draft(data: dict) -> Optional[str]:
+    """Insere rascunho de proposta. Devolve o UUID gerado."""
+    try:
+        db = get_supabase()
+        result = db.table("proposal_drafts").insert(data).execute()
+        if result.data:
+            return result.data[0].get("id")
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao guardar rascunho de proposta: {e}")
+        return None
+
+
+async def update_proposal_draft(draft_id: str, updates: dict) -> None:
+    """Actualiza campos de um rascunho existente."""
+    try:
+        db = get_supabase()
+        updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+        db.table("proposal_drafts").update(updates).eq("id", draft_id).execute()
+    except Exception as e:
+        logger.error(f"Erro ao actualizar rascunho {draft_id}: {e}")
+
+
+async def get_pending_proposal_for_fidel() -> Optional[dict]:
+    """Devolve o rascunho mais recente em estado pending ou editing."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("proposal_drafts")
+            .select("*")
+            .in_("status", ["pending", "editing"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Erro ao buscar proposta pendente: {e}")
+        return None
