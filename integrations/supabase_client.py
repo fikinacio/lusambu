@@ -73,18 +73,37 @@ async def get_all_leads() -> list[dict]:
 
 
 async def get_outreach_message(number: str) -> Optional[str]:
-    """Busca mensagem de prospecção enviada a este número. None se não existe."""
+    """Busca a última mensagem outbound enviada a este número via WhatsApp.
+
+    Fluxo: empresas.whatsapp = number → mensagens.empresa_id
+    Filtra: direcao='saida', canal='whatsapp'. Devolve mensagens.conteudo.
+    """
     try:
         db = get_supabase()
-        result = (
-            db.table("mensagens")
-            .select("mensagem")
+        # 1. Encontrar empresa pelo número de WhatsApp
+        empresa = (
+            db.table("empresas")
+            .select("id")
             .eq("whatsapp", number)
             .limit(1)
             .execute()
         )
+        if not empresa.data:
+            return None
+        empresa_id = empresa.data[0]["id"]
+        # 2. Buscar última mensagem outbound enviada a essa empresa
+        result = (
+            db.table("mensagens")
+            .select("conteudo")
+            .eq("empresa_id", empresa_id)
+            .eq("direcao", "saida")
+            .eq("canal", "whatsapp")
+            .order("timestamp", desc=True)
+            .limit(1)
+            .execute()
+        )
         if result.data:
-            return result.data[0].get("mensagem")
+            return result.data[0].get("conteudo")
         return None
     except Exception as e:
         logger.error(f"Erro ao carregar contexto de prospecção para {number}: {e}")
