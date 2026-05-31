@@ -183,8 +183,8 @@ async def update_proposal_draft(draft_id: str, updates: dict) -> None:
     """Actualiza campos de um rascunho existente."""
     try:
         db = get_supabase()
-        updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-        db.table("proposal_drafts").update(updates).eq("id", draft_id).execute()
+        payload = {**updates, "updated_at": datetime.now(timezone.utc).isoformat()}
+        db.table("proposal_drafts").update(payload).eq("id", draft_id).execute()
     except Exception as e:
         logger.error(f"Erro ao actualizar rascunho {draft_id}: {e}")
 

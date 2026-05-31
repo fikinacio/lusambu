@@ -72,9 +72,10 @@ async def test_save_proposal_draft_returns_id():
 
 @pytest.mark.asyncio
 async def test_update_proposal_draft_no_exception():
+    updates = {"status": "approved"}
     with patch("integrations.supabase_client.get_supabase", return_value=_mock_db([])):
-        # Should not raise
-        await sb.update_proposal_draft("uuid-1234", {"status": "approved"})
+        await sb.update_proposal_draft("uuid-1234", updates)
+    assert "updated_at" not in updates  # caller's dict must not be mutated
 
 
 @pytest.mark.asyncio
