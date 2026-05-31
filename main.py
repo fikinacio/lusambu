@@ -8,14 +8,20 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.types import Command
+from pydantic import BaseModel
 
 from config import settings
 from agent import create_graph, LusambuState
+from proposal_agent import create_proposal_graph
 from fastapi.responses import HTMLResponse
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage
 from integrations.evolution import send_whatsapp_message
-from integrations.supabase_client import get_stale_leads, increment_followup, get_all_leads, get_outbound_stale_leads, upsert_lead
+from integrations.supabase_client import (
+    get_stale_leads, increment_followup, get_all_leads,
+    get_outbound_stale_leads, upsert_lead, get_pending_proposal_for_fidel,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +30,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 graph = None
+proposal_graph = None
+FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP", "")
 _llm_followup = ChatAnthropic(model="claude-haiku-3-5", max_tokens=120, temperature=0.7)
 
 _FOLLOWUP_MSGS = {
@@ -107,12 +115,36 @@ async def _send_outbound_followups() -> None:
             logger.error(f"Erro ao marcar sem_resposta para {number}: {e}")
 
 
+async def _run_proposal(whatsapp: str) -> None:
+    """Inicia o grafo de proposta para um lead."""
+    config = {"configurable": {"thread_id": f"proposal-{whatsapp}"}}
+    try:
+        await proposal_graph.ainvoke({"whatsapp": whatsapp}, config=config)
+    except Exception as e:
+        logger.error(f"Erro ao iniciar proposta para {whatsapp}: {e}")
+
+
+async def _resume_proposal_for_fidel(fidel_message: str) -> None:
+    """Retoma o grafo de proposta pausado com a decisão do Fidel."""
+    draft = await get_pending_proposal_for_fidel()
+    if not draft:
+        logger.warning("Fidel respondeu mas não há proposta pendente.")
+        return
+    whatsapp = draft.get("whatsapp", "")
+    config = {"configurable": {"thread_id": f"proposal-{whatsapp}"}}
+    try:
+        await proposal_graph.ainvoke(Command(resume=fidel_message), config=config)
+    except Exception as e:
+        logger.error(f"Erro ao retomar proposta para {whatsapp}: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global graph
+    global graph, proposal_graph
     os.makedirs(os.path.dirname(settings.CHECKPOINT_DB_PATH), exist_ok=True)
     async with AsyncSqliteSaver.from_conn_string(settings.CHECKPOINT_DB_PATH) as checkpointer:
         graph = create_graph(checkpointer)
+        proposal_graph = create_proposal_graph(checkpointer)
         scheduler = AsyncIOScheduler()
         scheduler.add_job(_send_followups, "interval", hours=1, id="followup")
         scheduler.add_job(_send_outbound_followups, "interval", hours=1, id="outbound_followup")
@@ -143,6 +175,7 @@ def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:
         text = (
             message_obj.get("conversation")
             or message_obj.get("extendedTextMessage", {}).get("text")
+            or message_obj.get("buttonsResponseMessage", {}).get("selectedButtonId")
             or ""
         )
 
@@ -178,6 +211,10 @@ def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuStat
 
 
 async def _process_message(number: str, text: str):
+    if FIDEL_NUMBER and number == FIDEL_NUMBER:
+        await _resume_proposal_for_fidel(text)
+        return
+
     config = {"configurable": {"thread_id": number}}
 
     existing = await graph.aget_state(config)
@@ -221,6 +258,16 @@ async def webhook(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok", "agent": "Lusambu"}
+
+
+class ProposalRunRequest(BaseModel):
+    whatsapp: str
+
+
+@app.post("/proposal/run")
+async def proposal_run(request: ProposalRunRequest):
+    asyncio.create_task(_run_proposal(request.whatsapp))
+    return {"status": "started", "whatsapp": request.whatsapp}
 
 
 def _badge(value: str, mapping: dict, default: str = "#888") -> str:
