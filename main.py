@@ -12,8 +12,10 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from config import settings
 from agent import create_graph, LusambuState
 from fastapi.responses import HTMLResponse
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import SystemMessage
 from integrations.evolution import send_whatsapp_message
-from integrations.supabase_client import get_stale_leads, increment_followup, get_all_leads
+from integrations.supabase_client import get_stale_leads, increment_followup, get_all_leads, get_outbound_stale_leads, upsert_lead
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 graph = None
+_llm_followup = ChatAnthropic(model="claude-haiku-3-5", max_tokens=120, temperature=0.7)
 
 _FOLLOWUP_MSGS = {
     "qualify": "Olá! Percebo que és ocupado. Tens 2 minutos para continuar a nossa conversa?",
@@ -49,6 +52,61 @@ async def _send_followups() -> None:
             logger.error(f"Erro ao enviar follow-up para {number}: {e}")
 
 
+_FOLLOWUP2_MSG = (
+    "Percebo que o momento pode não ser o ideal. "
+    "Fico disponível quando fizer sentido. 🙏"
+)
+
+
+async def _send_outbound_followups() -> None:
+    """Gere o ciclo de follow-up para leads outbound (status='enviado')."""
+    # --- Passo 1: Follow-up 1 (48h, LLM) ---
+    leads1 = await get_outbound_stale_leads(followup_count=0, hours=48)
+    for lead in leads1:
+        number = lead.get("whatsapp")
+        try:
+            prompt = (
+                f"Gera uma mensagem curta de follow-up para um lead de prospecção.\n"
+                f"Nome: {lead.get('name') or 'o contacto'}\n"
+                f"Sector: {lead.get('sector') or 'desconhecido'}\n"
+                f"Dor identificada: {lead.get('pain_point') or 'não identificada'}\n\n"
+                "Regras:\n"
+                "- Ângulo novo, não repitas a mensagem inicial\n"
+                "- Máximo 3 linhas\n"
+                "- Português europeu, directo, sem linguagem de chatbot\n"
+                "- Não uses listas nem emojis excessivos\n"
+                "Devolve apenas o texto da mensagem, sem aspas nem prefixos."
+            )
+            response = await _llm_followup.ainvoke([SystemMessage(content=prompt)])
+            msg = response.content.strip()
+            await send_whatsapp_message(number, msg)
+            await increment_followup(number)
+            logger.info(f"Outbound follow-up 1 enviado para {number}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar outbound follow-up 1 para {number}: {e}")
+
+    # --- Passo 2: Follow-up 2 (72h após follow-up 1, fixo) ---
+    leads2 = await get_outbound_stale_leads(followup_count=1, hours=72)
+    for lead in leads2:
+        number = lead.get("whatsapp")
+        try:
+            await send_whatsapp_message(number, _FOLLOWUP2_MSG)
+            await increment_followup(number)
+            logger.info(f"Outbound follow-up 2 enviado para {number}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar outbound follow-up 2 para {number}: {e}")
+
+    # --- Passo 3: Marcar sem_resposta (48h após follow-up 2) ---
+    leads3 = await get_outbound_stale_leads(followup_count=2, hours=48)
+    for lead in leads3:
+        number = lead.get("whatsapp")
+        try:
+            await upsert_lead({"whatsapp": number, "status": "sem_resposta"})
+            logger.info(f"Lead {number} marcado como sem_resposta")
+        except Exception as e:
+            logger.error(f"Erro ao marcar sem_resposta para {number}: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global graph
@@ -57,6 +115,7 @@ async def lifespan(app: FastAPI):
         graph = create_graph(checkpointer)
         scheduler = AsyncIOScheduler()
         scheduler.add_job(_send_followups, "interval", hours=1, id="followup")
+        scheduler.add_job(_send_outbound_followups, "interval", hours=1, id="outbound_followup")
         scheduler.start()
         logger.info(f"Lusambu iniciado. Checkpoints em {settings.CHECKPOINT_DB_PATH}")
         yield

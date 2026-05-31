@@ -117,3 +117,22 @@ async def increment_followup(whatsapp: str) -> None:
         db.rpc("increment_followup_count", {"p_whatsapp": whatsapp}).execute()
     except Exception as e:
         logger.error(f"Erro ao actualizar followup_count para {whatsapp}: {e}")
+
+
+async def get_outbound_stale_leads(followup_count: int, hours: int) -> list[dict]:
+    """Leads outbound (status='enviado') sem resposta há mais de `hours` horas, com followup_count exacto."""
+    try:
+        db = get_supabase()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        result = (
+            db.table("lusambu_leads")
+            .select("whatsapp, name, sector, pain_point, followup_count")
+            .eq("status", "enviado")
+            .eq("followup_count", followup_count)
+            .lt("last_contact_at", cutoff)
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Erro ao buscar outbound stale leads (count={followup_count}): {e}")
+        return []
