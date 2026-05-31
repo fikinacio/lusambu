@@ -1,6 +1,7 @@
 import os
 import logging
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,25 @@ async def get_all_leads() -> list[dict]:
     except Exception as e:
         logger.error(f"Erro ao carregar leads: {e}")
         return []
+
+
+async def get_outreach_message(number: str) -> Optional[str]:
+    """Busca mensagem de prospecção enviada a este número. None se não existe."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("mensagens")
+            .select("mensagem")
+            .eq("whatsapp", number)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0].get("mensagem")
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao carregar contexto de prospecção para {number}: {e}")
+        return None
 
 
 async def increment_followup(whatsapp: str) -> None:

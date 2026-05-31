@@ -139,10 +139,14 @@ async def main() -> None:
 
     # Substitui no namespace de agent.nodes e sales_agent
     # (as funções já foram importadas por referência — substituir no módulo de origem não chegaria)
+    async def _mock_outreach(number: str):
+        return None
+
     _nodes.send_whatsapp_message = _print_message
     _nodes.notify_fidel = _print_fidel
     _nodes.upsert_lead = _print_lead
     _nodes._human_delay = _no_delay
+    _nodes.get_outreach_message = _mock_outreach
     _sales_node.send_whatsapp_message = _print_sales_message
     _sales_node.send_typing_indicator = _no_op
     _sales_node._human_delay = _no_delay
@@ -186,6 +190,8 @@ async def main() -> None:
                 "calendly_sent": False,
                 "supervisor_decision": {},
                 "sales_agent_active": False,
+                "outreach_message": None,
+                "outreach_source": "",
             }
         elif existing.values:
             state_input = {"messages": [HumanMessage(content=user_input)]}
@@ -205,6 +211,8 @@ async def main() -> None:
                 "calendly_sent": False,
                 "supervisor_decision": {},
                 "sales_agent_active": False,
+                "outreach_message": None,
+                "outreach_source": "",
             }
 
         try:

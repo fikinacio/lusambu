@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from .state import LusambuState
-from .nodes import lusambu_node, discard_node, escalate_node
+from .nodes import lusambu_node, discard_node, escalate_node, load_outreach_context
 from sales_agent.supervisor import supervisor_node
 from sales_agent.sales_node import sales_agent_node
 
@@ -58,6 +58,7 @@ def create_graph(checkpointer: BaseCheckpointSaver):
     """
     builder = StateGraph(LusambuState)
 
+    builder.add_node("load_outreach_context", load_outreach_context)
     builder.add_node("dispatcher", lambda s: s)
     builder.add_node("lusambu", lusambu_node)
     builder.add_node("supervisor", supervisor_node)
@@ -65,7 +66,8 @@ def create_graph(checkpointer: BaseCheckpointSaver):
     builder.add_node("discard", discard_node)
     builder.add_node("escalate", escalate_node)
 
-    builder.set_entry_point("dispatcher")
+    builder.set_entry_point("load_outreach_context")
+    builder.add_edge("load_outreach_context", "dispatcher")
 
     builder.add_conditional_edges("dispatcher", _dispatcher_router, {
         "lusambu": "lusambu",

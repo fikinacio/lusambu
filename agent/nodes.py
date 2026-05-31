@@ -7,9 +7,10 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 
 from .state import LusambuState, LeadInfo
-from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B
+from jinja2 import Template
+from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B, OUTREACH_CONTEXT_TEMPLATE
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
-from integrations.supabase_client import upsert_lead
+from integrations.supabase_client import upsert_lead, get_outreach_message
 from integrations.rag import consultar_conhecimento
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,28 @@ def _determine_stage(
     if lead_info.get("sector") and lead_info.get("pain_point"):
         return "pitch"
     return "qualify"
+
+
+# ---------------------------------------------------------------------------
+# Nó de contexto de prospecção — corre uma vez por conversa
+# ---------------------------------------------------------------------------
+
+async def load_outreach_context(state: LusambuState) -> LusambuState:
+    """Carrega contexto de prospecção antes de qualquer resposta.
+
+    Consulta a tabela 'mensagens' pelo número do lead. Se encontrar registo,
+    injeta o campo 'mensagem' no estado como outreach_message (outbound).
+    Se não encontrar, marca como inbound. Guard: só executa no 1º turno.
+    """
+    if state.get("outreach_source"):  # já carregado num turno anterior
+        return state
+
+    number = state["whatsapp_number"]
+    outreach_msg = await get_outreach_message(number)
+
+    if outreach_msg:
+        return {**state, "outreach_message": outreach_msg, "outreach_source": "outbound"}
+    return {**state, "outreach_message": None, "outreach_source": "inbound"}
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +208,10 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
             rag_context = await consultar_conhecimento(last_human) or ""
 
     # ---- Caminho normal: gerar resposta com LLM ----
-    system = SYSTEM_PROMPT.format(
+    outreach_ctx = Template(OUTREACH_CONTEXT_TEMPLATE).render(
+        outreach_message=state.get("outreach_message")
+    )
+    system = outreach_ctx + "\n" + SYSTEM_PROMPT.format(
         stage=current_stage,
         lead_info=json.dumps(extracted_after_user, ensure_ascii=False, default=str),
         objection_count=objection_count,
