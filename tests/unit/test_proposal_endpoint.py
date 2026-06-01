@@ -131,25 +131,25 @@ async def test_run_proposal_exception_is_caught():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_process_message_routes_fidel_to_proposal():
-    """Mensagem do número do Fidel vai para _resume_proposal_for_fidel."""
+async def test_process_message_routes_fidel_via_router():
+    """Mensagem do número do Fidel vai para _route_fidel_message."""
     with patch.object(m, "FIDEL_NUMBER", "41795748225"), \
-         patch("main._resume_proposal_for_fidel", AsyncMock()) as mock_resume:
+         patch("main._route_fidel_message", AsyncMock()) as mock_route:
         await m._process_message("41795748225", "aprovar")
-    mock_resume.assert_called_once_with("aprovar")
+    mock_route.assert_called_once_with("aprovar")
 
 
 @pytest.mark.asyncio
 async def test_process_message_non_fidel_does_not_route():
-    """Mensagem de outro número não chama _resume_proposal_for_fidel."""
+    """Mensagem de outro número não chama _route_fidel_message."""
     mock_graph = MagicMock()
     mock_graph.aget_state = AsyncMock(return_value=MagicMock(values={}))
     mock_graph.ainvoke = AsyncMock()
     with patch.object(m, "FIDEL_NUMBER", "41795748225"), \
          patch.object(m, "graph", mock_graph), \
-         patch("main._resume_proposal_for_fidel", AsyncMock()) as mock_resume:
+         patch("main._route_fidel_message", AsyncMock()) as mock_route:
         await m._process_message("244923000000", "olá")
-    mock_resume.assert_not_called()
+    mock_route.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -160,6 +160,6 @@ async def test_process_message_empty_fidel_number_no_routing():
     mock_graph.ainvoke = AsyncMock()
     with patch.object(m, "FIDEL_NUMBER", ""), \
          patch.object(m, "graph", mock_graph), \
-         patch("main._resume_proposal_for_fidel", AsyncMock()) as mock_resume:
+         patch("main._route_fidel_message", AsyncMock()) as mock_route:
         await m._process_message("41795748225", "aprovar")
-    mock_resume.assert_not_called()
+    mock_route.assert_not_called()

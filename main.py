@@ -14,13 +14,17 @@ from pydantic import BaseModel
 from config import settings
 from agent import create_graph, LusambuState
 from proposal_agent import create_proposal_graph
+from invoice_agent import create_invoice_graph
 from fastapi.responses import HTMLResponse
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage
 from integrations.evolution import send_whatsapp_message
+from integrations.invoiceninja import send_invoice_reminder
 from integrations.supabase_client import (
     get_stale_leads, increment_followup, get_all_leads,
-    get_outbound_stale_leads, upsert_lead, get_pending_proposal_for_fidel,
+    get_outbound_stale_leads, upsert_lead,
+    get_pending_proposal_for_fidel,
+    update_invoice_draft, get_pending_invoice_for_fidel, get_overdue_invoices,
 )
 
 logging.basicConfig(
@@ -31,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 graph = None
 proposal_graph = None
+invoice_graph = None
 FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP", "")
 _llm_followup = ChatAnthropic(model="claude-haiku-3-5", max_tokens=120, temperature=0.7)
 
@@ -115,6 +120,66 @@ async def _send_outbound_followups() -> None:
             logger.error(f"Erro ao marcar sem_resposta para {number}: {e}")
 
 
+async def _run_invoice(whatsapp: str) -> None:
+    """Inicia o grafo de factura para um lead."""
+    config = {"configurable": {"thread_id": f"invoice-{whatsapp}"}}
+    try:
+        await invoice_graph.ainvoke({"whatsapp": whatsapp}, config=config)
+    except Exception as e:
+        logger.error(f"Erro ao iniciar factura para {whatsapp}: {e}")
+
+
+async def _resume_invoice_for_fidel(fidel_message: str) -> None:
+    """Retoma o grafo de factura pausado com a decisão do Fidel."""
+    draft = await get_pending_invoice_for_fidel()
+    if not draft:
+        logger.warning("Fidel respondeu mas não há factura pendente.")
+        return
+    whatsapp = draft.get("whatsapp", "")
+    config = {"configurable": {"thread_id": f"invoice-{whatsapp}"}}
+    try:
+        await invoice_graph.ainvoke(Command(resume=fidel_message), config=config)
+    except Exception as e:
+        logger.error(f"Erro ao retomar factura para {whatsapp}: {e}")
+
+
+async def _route_fidel_message(text: str) -> None:
+    """Determina se Fidel está a responder a uma proposta ou a uma factura."""
+    if await get_pending_proposal_for_fidel():
+        await _resume_proposal_for_fidel(text)
+        return
+    if await get_pending_invoice_for_fidel():
+        await _resume_invoice_for_fidel(text)
+        return
+    logger.warning("Fidel respondeu mas não há proposta ou factura pendente.")
+
+
+async def _check_payment_alerts() -> None:
+    """Verifica facturas em atraso e envia alertas."""
+    # 7 dias sem pagamento → alerta ao Fidel via WhatsApp
+    overdue_7d = await get_overdue_invoices(days=7, alerted_field="fidel_alerted_7d")
+    for inv in overdue_7d:
+        try:
+            empresa = inv.get("empresa", "cliente")
+            invoice_number = inv.get("invoice_number", "—")
+            msg = f"⚠️ A factura para *{empresa}* (Nº {invoice_number}) está por pagar há 7 dias."
+            await send_whatsapp_message(FIDEL_NUMBER, msg)
+            await update_invoice_draft(inv["id"], {"fidel_alerted_7d": True})
+            logger.info(f"Alerta 7d enviado ao Fidel para factura {inv['id']}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar alerta 7d para factura {inv.get('id')}: {e}")
+
+    # 14 dias sem pagamento → reminder automático ao cliente
+    overdue_14d = await get_overdue_invoices(days=14, alerted_field="client_alerted_14d")
+    for inv in overdue_14d:
+        try:
+            await send_invoice_reminder(inv.get("invoice_id", ""))
+            await update_invoice_draft(inv["id"], {"client_alerted_14d": True})
+            logger.info(f"Reminder 14d enviado ao cliente para factura {inv['id']}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar reminder 14d para factura {inv.get('id')}: {e}")
+
+
 async def _run_proposal(whatsapp: str) -> None:
     """Inicia o grafo de proposta para um lead."""
     config = {"configurable": {"thread_id": f"proposal-{whatsapp}"}}
@@ -140,14 +205,16 @@ async def _resume_proposal_for_fidel(fidel_message: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global graph, proposal_graph
+    global graph, proposal_graph, invoice_graph
     os.makedirs(os.path.dirname(settings.CHECKPOINT_DB_PATH), exist_ok=True)
     async with AsyncSqliteSaver.from_conn_string(settings.CHECKPOINT_DB_PATH) as checkpointer:
         graph = create_graph(checkpointer)
         proposal_graph = create_proposal_graph(checkpointer)
+        invoice_graph = create_invoice_graph(checkpointer)
         scheduler = AsyncIOScheduler()
         scheduler.add_job(_send_followups, "interval", hours=1, id="followup")
         scheduler.add_job(_send_outbound_followups, "interval", hours=1, id="outbound_followup")
+        scheduler.add_job(_check_payment_alerts, "interval", hours=6, id="payment_alerts")
         scheduler.start()
         logger.info(f"Lusambu iniciado. Checkpoints em {settings.CHECKPOINT_DB_PATH}")
         yield
@@ -212,7 +279,7 @@ def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuStat
 
 async def _process_message(number: str, text: str):
     if FIDEL_NUMBER and number == FIDEL_NUMBER:
-        await _resume_proposal_for_fidel(text)
+        await _route_fidel_message(text)
         return
 
     config = {"configurable": {"thread_id": number}}
@@ -267,6 +334,16 @@ class ProposalRunRequest(BaseModel):
 @app.post("/proposal/run")
 async def proposal_run(request: ProposalRunRequest):
     asyncio.create_task(_run_proposal(request.whatsapp))
+    return {"status": "started", "whatsapp": request.whatsapp}
+
+
+class InvoiceRunRequest(BaseModel):
+    whatsapp: str
+
+
+@app.post("/invoice/run")
+async def invoice_run(request: InvoiceRunRequest):
+    asyncio.create_task(_run_invoice(request.whatsapp))
     return {"status": "started", "whatsapp": request.whatsapp}
 
 

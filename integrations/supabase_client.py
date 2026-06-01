@@ -205,3 +205,84 @@ async def get_pending_proposal_for_fidel() -> Optional[dict]:
     except Exception as e:
         logger.error(f"Erro ao buscar proposta pendente: {e}")
         return None
+
+
+# ---------------------------------------------------------------------------
+# Invoice drafts
+# ---------------------------------------------------------------------------
+
+async def get_lead_for_invoice(whatsapp: str) -> Optional[dict]:
+    """Lê dados completos do lead para gerar factura (inclui email)."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("lusambu_leads")
+            .select("whatsapp, name, company, sector, email, valor_negociado, status")
+            .eq("whatsapp", whatsapp)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Erro ao ler lead para factura ({whatsapp}): {e}")
+        return None
+
+
+async def save_invoice_draft(data: dict) -> Optional[str]:
+    """Insere rascunho de factura. Devolve o UUID gerado."""
+    try:
+        db = get_supabase()
+        result = db.table("invoice_drafts").insert(data).execute()
+        if result.data:
+            return result.data[0].get("id")
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao guardar rascunho de factura: {e}")
+        return None
+
+
+async def update_invoice_draft(draft_id: str, updates: dict) -> None:
+    """Actualiza campos de um rascunho de factura existente."""
+    try:
+        db = get_supabase()
+        payload = {**updates, "updated_at": datetime.now(timezone.utc).isoformat()}
+        db.table("invoice_drafts").update(payload).eq("id", draft_id).execute()
+    except Exception as e:
+        logger.error(f"Erro ao actualizar rascunho de factura {draft_id}: {e}")
+
+
+async def get_pending_invoice_for_fidel() -> Optional[dict]:
+    """Devolve o rascunho de factura mais recente em estado pending ou editing."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("invoice_drafts")
+            .select("*")
+            .in_("status", ["pending", "editing"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Erro ao buscar factura pendente: {e}")
+        return None
+
+
+async def get_overdue_invoices(days: int, alerted_field: str) -> list[dict]:
+    """Facturas enviadas sem pagamento há mais de `days` dias, ainda não alertadas."""
+    try:
+        db = get_supabase()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        result = (
+            db.table("invoice_drafts")
+            .select("id, whatsapp, empresa, invoice_id, invoice_number, data_faturacao")
+            .eq("status_pagamento", "pendente")
+            .lt("data_faturacao", cutoff)
+            .eq(alerted_field, False)
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Erro ao buscar facturas em atraso ({days}d): {e}")
+        return []
