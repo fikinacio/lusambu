@@ -12,7 +12,7 @@ NOTION_VERSION = "2022-06-28"
 
 def _headers() -> dict:
     return {
-        "Authorization": f"Bearer {os.getenv('NOTION_API', '')}",
+        "Authorization": f"Bearer {os.getenv('NOTION_API_KEY', '')}",
         "Content-Type": "application/json",
         "Notion-Version": NOTION_VERSION,
     }
