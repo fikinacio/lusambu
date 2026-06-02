@@ -34,14 +34,18 @@ async def test_route_fidel_invoice_pending():
 
 @pytest.mark.asyncio
 async def test_route_fidel_nothing_pending():
-    """Sem proposta nem factura pendente → nenhuma função chamada."""
+    """Sem proposta, factura nem evento de projecto → nenhuma função chamada."""
     with patch("main.get_pending_proposal_for_fidel", AsyncMock(return_value=None)), \
          patch("main.get_pending_invoice_for_fidel", AsyncMock(return_value=None)), \
+         patch("main.get_pending_project_event_for_fidel", AsyncMock(return_value=None)), \
+         patch("main.get_draft_project_for_fidel", AsyncMock(return_value=None)), \
          patch("main._resume_proposal_for_fidel", AsyncMock()) as mock_proposal, \
-         patch("main._resume_invoice_for_fidel", AsyncMock()) as mock_invoice:
+         patch("main._resume_invoice_for_fidel", AsyncMock()) as mock_invoice, \
+         patch("main._resume_project_for_fidel", AsyncMock()) as mock_project:
         await m._route_fidel_message("aprovar")
     mock_proposal.assert_not_called()
     mock_invoice.assert_not_called()
+    mock_project.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

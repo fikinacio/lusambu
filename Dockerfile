@@ -18,6 +18,7 @@ COPY integrations ./integrations
 COPY sales_agent ./sales_agent
 COPY proposal_agent ./proposal_agent
 COPY invoice_agent ./invoice_agent
+COPY project_agent ./project_agent
 
 # Volume para persistir os checkpoints SQLite entre redeploys
 RUN mkdir -p /data

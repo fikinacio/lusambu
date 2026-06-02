@@ -286,3 +286,246 @@ async def get_overdue_invoices(days: int, alerted_field: str) -> list[dict]:
     except Exception as e:
         logger.error(f"Erro ao buscar facturas em atraso ({days}d): {e}")
         return []
+
+
+# ---------------------------------------------------------------------------
+# Projects
+# ---------------------------------------------------------------------------
+
+async def get_deal_for_project(whatsapp: str) -> Optional[dict]:
+    """Lê dados do deal: invoice_drafts (valor/empresa/sector/email) + lusambu_leads (name)."""
+    try:
+        db = get_supabase()
+        inv = (
+            db.table("invoice_drafts")
+            .select("whatsapp, empresa, sector, email, valor")
+            .eq("whatsapp", whatsapp)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not inv.data:
+            return None
+        deal = dict(inv.data[0])
+        lead = (
+            db.table("lusambu_leads")
+            .select("name")
+            .eq("whatsapp", whatsapp)
+            .limit(1)
+            .execute()
+        )
+        deal["contact_name"] = lead.data[0].get("name", "") if lead.data else ""
+        return deal
+    except Exception as e:
+        logger.error(f"Erro ao ler deal para projecto ({whatsapp}): {e}")
+        return None
+
+
+async def save_project(data: dict) -> Optional[str]:
+    """Insere registo de projecto. Devolve o UUID gerado."""
+    try:
+        db = get_supabase()
+        result = db.table("projects").insert(data).execute()
+        if result.data:
+            return result.data[0].get("id")
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao guardar projecto: {e}")
+        return None
+
+
+async def update_project(project_id: str, updates: dict) -> None:
+    """Actualiza campos de um projecto existente."""
+    try:
+        db = get_supabase()
+        payload = {**updates, "updated_at": datetime.now(timezone.utc).isoformat()}
+        db.table("projects").update(payload).eq("id", project_id).execute()
+    except Exception as e:
+        logger.error(f"Erro ao actualizar projecto {project_id}: {e}")
+
+
+async def get_project_by_whatsapp(whatsapp: str) -> Optional[dict]:
+    """Devolve o projecto activo (em_curso) mais recente para este número."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("projects")
+            .select("*")
+            .eq("whatsapp", whatsapp)
+            .eq("status", "em_curso")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Erro ao buscar projecto para {whatsapp}: {e}")
+        return None
+
+
+async def get_draft_project_for_fidel() -> Optional[dict]:
+    """Devolve o projecto em draft mais recente (aguardando aprovação do Fidel)."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("projects")
+            .select("*")
+            .eq("status", "draft")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Erro ao buscar projecto draft para Fidel: {e}")
+        return None
+
+
+async def save_project_milestones(project_id: str, milestones: list) -> None:
+    """Insere lista de milestones para um projecto."""
+    try:
+        db = get_supabase()
+        rows = [{"project_id": project_id, **m} for m in milestones]
+        db.table("project_milestones").insert(rows).execute()
+    except Exception as e:
+        logger.error(f"Erro ao guardar milestones do projecto {project_id}: {e}")
+
+
+async def get_project_milestones(project_id: str) -> list[dict]:
+    """Devolve todos os milestones de um projecto ordenados por ordem."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("project_milestones")
+            .select("*")
+            .eq("project_id", project_id)
+            .order("ordem")
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Erro ao carregar milestones do projecto {project_id}: {e}")
+        return []
+
+
+async def update_milestone(milestone_id: str, updates: dict) -> None:
+    """Actualiza campos de um milestone existente."""
+    try:
+        db = get_supabase()
+        payload = {**updates, "updated_at": datetime.now(timezone.utc).isoformat()}
+        db.table("project_milestones").update(payload).eq("id", milestone_id).execute()
+    except Exception as e:
+        logger.error(f"Erro ao actualizar milestone {milestone_id}: {e}")
+
+
+async def get_delayed_milestones() -> list[dict]:
+    """Milestones com data_prevista passada, não concluídos, de projectos em curso."""
+    try:
+        db = get_supabase()
+        today = datetime.now(timezone.utc).date().isoformat()
+        result = (
+            db.table("project_milestones")
+            .select("id, project_id, nome, data_prevista")
+            .lt("data_prevista", today)
+            .neq("status", "concluido")
+            .neq("status", "atrasado")
+            .execute()
+        )
+        rows = []
+        for m in (result.data or []):
+            proj = (
+                db.table("projects")
+                .select("whatsapp, empresa, notion_page_id")
+                .eq("id", m["project_id"])
+                .eq("status", "em_curso")
+                .limit(1)
+                .execute()
+            )
+            if proj.data:
+                rows.append({**m, **proj.data[0]})
+        return rows
+    except Exception as e:
+        logger.error(f"Erro ao buscar milestones atrasados: {e}")
+        return []
+
+
+async def get_completed_milestones_pending_confirmation() -> list[dict]:
+    """Milestones concluídos que ainda não foram confirmados ao Fidel."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("project_milestones")
+            .select("id, project_id, nome, ordem")
+            .eq("status", "concluido")
+            .eq("fidel_alerted_completion", False)
+            .execute()
+        )
+        rows = []
+        for m in (result.data or []):
+            proj = (
+                db.table("projects")
+                .select("whatsapp, empresa, email, canal_preferido, notion_page_id, contact_name")
+                .eq("id", m["project_id"])
+                .eq("status", "em_curso")
+                .limit(1)
+                .execute()
+            )
+            if proj.data:
+                rows.append({**m, **proj.data[0]})
+        return rows
+    except Exception as e:
+        logger.error(f"Erro ao buscar milestones concluídos pendentes: {e}")
+        return []
+
+
+async def get_pending_project_event_for_fidel() -> Optional[dict]:
+    """Devolve o event de projecto mais recente em estado pending."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("project_events")
+            .select("*")
+            .eq("status", "pending")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            return None
+        event = dict(result.data[0])
+        proj = (
+            db.table("projects")
+            .select("whatsapp, empresa, email, canal_preferido, notion_page_id, contact_name")
+            .eq("id", event["project_id"])
+            .limit(1)
+            .execute()
+        )
+        if proj.data:
+            event.update(proj.data[0])
+        return event
+    except Exception as e:
+        logger.error(f"Erro ao buscar event de projecto pendente: {e}")
+        return None
+
+
+async def save_project_event(data: dict) -> Optional[str]:
+    """Insere event de projecto. Devolve o UUID gerado."""
+    try:
+        db = get_supabase()
+        result = db.table("project_events").insert(data).execute()
+        if result.data:
+            return result.data[0].get("id")
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao guardar event de projecto: {e}")
+        return None
+
+
+async def update_project_event(event_id: str, updates: dict) -> None:
+    """Actualiza campos de um event de projecto existente."""
+    try:
+        db = get_supabase()
+        payload = {**updates, "updated_at": datetime.now(timezone.utc).isoformat()}
+        db.table("project_events").update(payload).eq("id", event_id).execute()
+    except Exception as e:
+        logger.error(f"Erro ao actualizar event {event_id}: {e}")

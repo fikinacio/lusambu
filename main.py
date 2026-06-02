@@ -15,16 +15,22 @@ from config import settings
 from agent import create_graph, LusambuState
 from proposal_agent import create_proposal_graph
 from invoice_agent import create_invoice_graph
+from project_agent import create_project_graph
 from fastapi.responses import HTMLResponse
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage
 from integrations.evolution import send_whatsapp_message
 from integrations.invoiceninja import send_invoice_reminder
+from integrations.notion import add_communication_log as notion_add_log, update_project_page_status
 from integrations.supabase_client import (
     get_stale_leads, increment_followup, get_all_leads,
     get_outbound_stale_leads, upsert_lead,
     get_pending_proposal_for_fidel,
     update_invoice_draft, get_pending_invoice_for_fidel, get_overdue_invoices,
+    update_project, get_draft_project_for_fidel, update_milestone,
+    get_delayed_milestones, get_completed_milestones_pending_confirmation,
+    get_project_milestones, save_project_event,
+    get_pending_project_event_for_fidel, update_project_event,
 )
 
 logging.basicConfig(
@@ -36,6 +42,7 @@ logger = logging.getLogger(__name__)
 graph = None
 proposal_graph = None
 invoice_graph = None
+project_graph = None
 FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP", "")
 _llm_followup = ChatAnthropic(model="claude-haiku-3-5", max_tokens=120, temperature=0.7)
 
@@ -120,6 +127,150 @@ async def _send_outbound_followups() -> None:
             logger.error(f"Erro ao marcar sem_resposta para {number}: {e}")
 
 
+async def _run_project(whatsapp: str) -> None:
+    """Inicia o grafo de gestão de projecto para um lead."""
+    config = {"configurable": {"thread_id": f"project-{whatsapp}"}}
+    try:
+        await project_graph.ainvoke({"whatsapp": whatsapp}, config=config)
+    except Exception as e:
+        logger.error(f"Erro ao iniciar projecto para {whatsapp}: {e}")
+
+
+async def _handle_project_event_response(event: dict, fidel_message: str) -> None:
+    """Processa confirmação do Fidel para milestone concluído ou conclusão de projecto."""
+    confirmed = any(w in fidel_message.lower() for w in ["sim", "ok", "confirm", "1", "✅", "aprov"])
+    if not confirmed:
+        await update_project_event(event["id"], {"status": "dismissed"})
+        return
+
+    whatsapp = event.get("whatsapp", "")
+    notion_page_id = event.get("notion_page_id", "")
+
+    if event["event_type"] == "milestone_done":
+        milestone_nome = event.get("event_data", {}).get("milestone_nome", "milestone")
+        nome = event.get("contact_name") or event.get("empresa", "")
+        msg = f"Olá {nome}! O milestone *{milestone_nome}* foi concluído com sucesso. 🎉"
+        await send_whatsapp_message(whatsapp, msg)
+        if notion_page_id:
+            await notion_add_log(notion_page_id, f"Cliente notificado: {milestone_nome} concluído.")
+        await update_project_event(event["id"], {"status": "confirmed"})
+
+    elif event["event_type"] == "completion":
+        nome = event.get("contact_name") or event.get("empresa", "")
+        msg = (
+            f"Olá {nome}!\n\n"
+            "O projecto foi concluído com sucesso. 🎉\n\n"
+            "Foi um prazer trabalhar convosco. Estamos disponíveis para qualquer suporte.\n\n"
+            "Fidel Kussunga | Bisca+"
+        )
+        await send_whatsapp_message(whatsapp, msg)
+        project_id = event.get("project_id", "")
+        if project_id:
+            from datetime import date
+            await update_project(project_id, {"status": "concluido", "data_inicio": date.today().isoformat()})
+        if notion_page_id:
+            await update_project_page_status(notion_page_id, "Concluído")
+            await notion_add_log(notion_page_id, "Projecto concluído. Cliente notificado.")
+        await update_project_event(event["id"], {"status": "confirmed"})
+
+
+async def _resume_project_for_fidel(fidel_message: str) -> None:
+    """Retoma evento de projecto ou grafo de arranque com a decisão do Fidel."""
+    event = await get_pending_project_event_for_fidel()
+    if event:
+        await _handle_project_event_response(event, fidel_message)
+        return
+    project = await get_draft_project_for_fidel()
+    if project:
+        whatsapp = project.get("whatsapp", "")
+        config = {"configurable": {"thread_id": f"project-{whatsapp}"}}
+        try:
+            await project_graph.ainvoke(Command(resume=fidel_message), config=config)
+        except Exception as e:
+            logger.error(f"Erro ao retomar projecto para {whatsapp}: {e}")
+        return
+    logger.warning("Fidel respondeu mas não há evento de projecto pendente.")
+
+
+async def _check_project_events() -> None:
+    """Verifica milestones atrasados, concluídos e projectos prontos a fechar."""
+    # 1. Milestones atrasados → alerta ao Fidel
+    delayed = await get_delayed_milestones()
+    for m in delayed:
+        try:
+            empresa = m.get("empresa", "cliente")
+            msg = f"⚠️ Milestone atrasado em *{empresa}*: _{m['nome']}_ (previsto: {m.get('data_prevista', '—')})."
+            await send_whatsapp_message(FIDEL_NUMBER, msg)
+            await update_milestone(m["id"], {"status": "atrasado"})
+            logger.info(f"Alerta de milestone atrasado enviado: {m['id']}")
+        except Exception as e:
+            logger.error(f"Erro ao alertar milestone atrasado {m.get('id')}: {e}")
+
+    # 2. Milestones concluídos aguardando confirmação do Fidel → pede confirmação
+    completed = await get_completed_milestones_pending_confirmation()
+    for m in completed:
+        try:
+            from integrations.evolution import send_button_message
+            empresa = m.get("empresa", "cliente")
+            milestone_nome = m.get("nome", "milestone")
+            msg = f"✅ Milestone concluído em *{empresa}*: _{milestone_nome}_\nNotificar o cliente?"
+            await send_button_message(
+                number=FIDEL_NUMBER,
+                body_text=msg,
+                buttons=[
+                    {"buttonId": "sim", "buttonText": {"displayText": "✅ Sim, notificar"}},
+                    {"buttonId": "nao", "buttonText": {"displayText": "❌ Não agora"}},
+                ],
+            )
+            await save_project_event({
+                "project_id": m["project_id"],
+                "event_type": "milestone_done",
+                "milestone_id": m["id"],
+                "event_data": {"milestone_nome": milestone_nome},
+                "status": "pending",
+            })
+            await update_milestone(m["id"], {"fidel_alerted_completion": True})
+            logger.info(f"Confirmação de milestone enviada ao Fidel: {m['id']}")
+        except Exception as e:
+            logger.error(f"Erro ao pedir confirmação de milestone {m.get('id')}: {e}")
+
+    # 3. Projectos com todos milestones concluídos → pede validação final
+    from integrations.evolution import send_button_message as _sbm
+    from integrations.supabase_client import get_project_by_whatsapp as _gpbw
+    try:
+        from supabase import Client
+        db_projects = (
+            __import__("integrations.supabase_client", fromlist=["get_supabase"]).get_supabase()
+            .table("projects")
+            .select("id, whatsapp, empresa")
+            .eq("status", "em_curso")
+            .execute()
+        )
+        for proj in (db_projects.data or []):
+            milestones = await get_project_milestones(proj["id"])
+            if milestones and all(m.get("status") == "concluido" for m in milestones):
+                existing = await get_pending_project_event_for_fidel()
+                if existing and existing.get("project_id") == proj["id"]:
+                    continue
+                msg = f"🏁 Todos os milestones de *{proj['empresa']}* estão concluídos. Validar e fechar projecto?"
+                await _sbm(
+                    number=FIDEL_NUMBER,
+                    body_text=msg,
+                    buttons=[
+                        {"buttonId": "sim", "buttonText": {"displayText": "✅ Confirmar conclusão"}},
+                        {"buttonId": "nao", "buttonText": {"displayText": "❌ Ainda não"}},
+                    ],
+                )
+                await save_project_event({
+                    "project_id": proj["id"],
+                    "event_type": "completion",
+                    "status": "pending",
+                })
+                logger.info(f"Pedido de conclusão enviado ao Fidel para projecto {proj['id']}")
+    except Exception as e:
+        logger.error(f"Erro ao verificar conclusão de projectos: {e}")
+
+
 async def _run_invoice(whatsapp: str) -> None:
     """Inicia o grafo de factura para um lead."""
     config = {"configurable": {"thread_id": f"invoice-{whatsapp}"}}
@@ -144,14 +295,17 @@ async def _resume_invoice_for_fidel(fidel_message: str) -> None:
 
 
 async def _route_fidel_message(text: str) -> None:
-    """Determina se Fidel está a responder a uma proposta ou a uma factura."""
+    """Determina se Fidel está a responder a uma proposta, factura ou evento de projecto."""
     if await get_pending_proposal_for_fidel():
         await _resume_proposal_for_fidel(text)
         return
     if await get_pending_invoice_for_fidel():
         await _resume_invoice_for_fidel(text)
         return
-    logger.warning("Fidel respondeu mas não há proposta ou factura pendente.")
+    if await get_pending_project_event_for_fidel() or await get_draft_project_for_fidel():
+        await _resume_project_for_fidel(text)
+        return
+    logger.warning("Fidel respondeu mas não há proposta, factura ou evento de projecto pendente.")
 
 
 async def _check_payment_alerts() -> None:
@@ -205,16 +359,18 @@ async def _resume_proposal_for_fidel(fidel_message: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global graph, proposal_graph, invoice_graph
+    global graph, proposal_graph, invoice_graph, project_graph
     os.makedirs(os.path.dirname(settings.CHECKPOINT_DB_PATH), exist_ok=True)
     async with AsyncSqliteSaver.from_conn_string(settings.CHECKPOINT_DB_PATH) as checkpointer:
         graph = create_graph(checkpointer)
         proposal_graph = create_proposal_graph(checkpointer)
         invoice_graph = create_invoice_graph(checkpointer)
+        project_graph = create_project_graph(checkpointer)
         scheduler = AsyncIOScheduler()
         scheduler.add_job(_send_followups, "interval", hours=1, id="followup")
         scheduler.add_job(_send_outbound_followups, "interval", hours=1, id="outbound_followup")
         scheduler.add_job(_check_payment_alerts, "interval", hours=6, id="payment_alerts")
+        scheduler.add_job(_check_project_events, "interval", hours=4, id="project_events")
         scheduler.start()
         logger.info(f"Lusambu iniciado. Checkpoints em {settings.CHECKPOINT_DB_PATH}")
         yield
@@ -344,6 +500,16 @@ class InvoiceRunRequest(BaseModel):
 @app.post("/invoice/run")
 async def invoice_run(request: InvoiceRunRequest):
     asyncio.create_task(_run_invoice(request.whatsapp))
+    return {"status": "started", "whatsapp": request.whatsapp}
+
+
+class ProjectRunRequest(BaseModel):
+    whatsapp: str
+
+
+@app.post("/project/run")
+async def project_run(request: ProjectRunRequest):
+    asyncio.create_task(_run_project(request.whatsapp))
     return {"status": "started", "whatsapp": request.whatsapp}
 
 
