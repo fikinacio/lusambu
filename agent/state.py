@@ -35,3 +35,4 @@ class LusambuState(TypedDict):
     sales_agent_active: bool   # Sales Agent tomou conta da conversa
     outreach_message: Optional[str]  # texto da msg de prospecção enviada; None se inbound
     outreach_source: str             # "outbound" | "inbound" | "" (ainda não carregado)
+    mensagens_context: str           # histórico CRM da tabela mensagens (carregado 1x)

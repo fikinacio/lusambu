@@ -110,6 +110,40 @@ async def get_outreach_message(number: str) -> Optional[str]:
         return None
 
 
+async def get_mensagens_history(number: str, limit: int = 20) -> list[dict]:
+    """Busca histórico completo de mensagens (entrada e saída) para este número via WhatsApp.
+
+    Fluxo: empresas.whatsapp = number → mensagens.empresa_id
+    Filtra: canal='whatsapp'. Ordena por timestamp ASC.
+    Devolve lista de {"direcao": "entrada"|"saida", "conteudo": str}.
+    """
+    try:
+        db = get_supabase()
+        empresa = (
+            db.table("empresas")
+            .select("id")
+            .eq("whatsapp", number)
+            .limit(1)
+            .execute()
+        )
+        if not empresa.data:
+            return []
+        empresa_id = empresa.data[0]["id"]
+        result = (
+            db.table("mensagens")
+            .select("direcao, conteudo, timestamp")
+            .eq("empresa_id", empresa_id)
+            .eq("canal", "whatsapp")
+            .order("timestamp", desc=False)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Erro ao carregar histórico de mensagens para {number}: {e}")
+        return []
+
+
 async def increment_followup(whatsapp: str) -> None:
     """Regista o follow-up enviado e actualiza o timestamp."""
     try:

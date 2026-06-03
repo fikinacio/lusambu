@@ -10,7 +10,7 @@ from .state import LusambuState, LeadInfo
 from jinja2 import Template
 from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B, OUTREACH_CONTEXT_TEMPLATE
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
-from integrations.supabase_client import upsert_lead, get_outreach_message
+from integrations.supabase_client import upsert_lead, get_outreach_message, get_mensagens_history
 from integrations.rag import consultar_conhecimento
 
 logger = logging.getLogger(__name__)
@@ -103,21 +103,35 @@ def _determine_stage(
 # ---------------------------------------------------------------------------
 
 async def load_outreach_context(state: LusambuState) -> LusambuState:
-    """Carrega contexto de prospecção antes de qualquer resposta.
+    """Carrega contexto de prospecção e histórico CRM antes de qualquer resposta.
 
-    Consulta a tabela 'mensagens' pelo número do lead. Se encontrar registo,
-    injeta o campo 'mensagem' no estado como outreach_message (outbound).
-    Se não encontrar, marca como inbound. Guard: só executa no 1º turno.
+    1. Busca histórico completo da tabela 'mensagens' (entrada + saída).
+    2. Busca última mensagem outbound (prospecção) — determina se é outbound/inbound.
+    Guard: só executa no 1º turno da conversa.
     """
     if state.get("outreach_source"):  # já carregado num turno anterior
         return state
 
     number = state["whatsapp_number"]
-    outreach_msg = await get_outreach_message(number)
+    outreach_msg, historico = await asyncio.gather(
+        get_outreach_message(number),
+        get_mensagens_history(number),
+    )
+
+    # Formata histórico CRM como contexto legível pelo LLM
+    mensagens_context = ""
+    if historico:
+        linhas = []
+        for m in historico:
+            papel = "BISCA+" if m.get("direcao") == "saida" else "LEAD"
+            conteudo = (m.get("conteudo") or "").strip()
+            if conteudo:
+                linhas.append(f"{papel}: {conteudo}")
+        mensagens_context = "\n".join(linhas)
 
     if outreach_msg:
-        return {**state, "outreach_message": outreach_msg, "outreach_source": "outbound"}
-    return {**state, "outreach_message": None, "outreach_source": "inbound"}
+        return {**state, "outreach_message": outreach_msg, "outreach_source": "outbound", "mensagens_context": mensagens_context}
+    return {**state, "outreach_message": None, "outreach_source": "inbound", "mensagens_context": mensagens_context}
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +232,16 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
         prompt_variant=variant or "A",
         pitch_instructions=PITCH_B if variant == "B" else PITCH_A,
     )
+
+    mensagens_ctx = state.get("mensagens_context", "")
+    if mensagens_ctx:
+        system += (
+            "\n\n---\nHISTÓRICO CRM (comunicações anteriores com este lead):\n"
+            + mensagens_ctx
+            + "\n---\n"
+            "Usa este histórico para continuidade. Não repitas saudações já feitas. "
+            "Refere informações anteriores naturalmente quando relevante."
+        )
 
     if rag_context:
         system += (
