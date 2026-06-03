@@ -92,8 +92,8 @@ async def test_load_context_node_populates_fields():
 async def test_load_context_node_deal_not_found():
     with patch("project_agent.nodes.get_deal_for_project", AsyncMock(return_value=None)), \
          patch("project_agent.nodes.get_company_config", AsyncMock(return_value={})):
-        result = await pn.load_context_node({"whatsapp": "244923000000"})
-    assert result.get("empresa", "") == ""
+        with pytest.raises(ValueError, match="Deal não encontrado"):
+            await pn.load_context_node({"whatsapp": "244923000000"})
 
 
 # ---------------------------------------------------------------------------

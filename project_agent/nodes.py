@@ -4,7 +4,7 @@ import os
 from datetime import date, timedelta
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.types import interrupt
 
 from .state import ProjectState
@@ -134,7 +134,7 @@ async def load_context_node(state: ProjectState) -> ProjectState:
     cfg = await get_company_config()
     if not deal:
         logger.warning(f"Deal não encontrado para projecto: {state['whatsapp']}")
-        return {**state, "company_config": cfg}
+        raise ValueError(f"Deal não encontrado para projecto: {state['whatsapp']}")
     return {
         **state,
         "empresa": deal.get("empresa") or "",
@@ -169,7 +169,10 @@ async def generate_milestones_node(state: ProjectState) -> ProjectState:
         milestones_json=json.dumps(milestones, ensure_ascii=False),
         data_inicio=today.isoformat(),
     )
-    response = await llm_project.ainvoke([SystemMessage(content=prompt)])
+    response = await llm_project.ainvoke([
+        SystemMessage(content=prompt),
+        HumanMessage(content="Formata os milestones acima em preview para WhatsApp."),
+    ])
     return {**state, "milestones": milestones, "milestones_preview": response.content.strip()}
 
 
@@ -179,7 +182,10 @@ async def regenerate_milestones_node(state: ProjectState) -> ProjectState:
         milestones_preview=state.get("milestones_preview", ""),
         edit_notes=state.get("edit_notes", ""),
     )
-    response = await llm_project.ainvoke([SystemMessage(content=prompt)])
+    response = await llm_project.ainvoke([
+        SystemMessage(content=prompt),
+        HumanMessage(content="Ajusta o preview com as correcções indicadas."),
+    ])
     iteration = state.get("iteration", 0) + 1
     return {**state, "milestones_preview": response.content.strip(), "iteration": iteration}
 
