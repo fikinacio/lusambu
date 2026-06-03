@@ -1,6 +1,8 @@
 import logging
+import re
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langchain_core.messages import HumanMessage
 
 from .state import LusambuState
 from .nodes import lusambu_node, discard_node, escalate_node, load_outreach_context
@@ -9,11 +11,30 @@ from sales_agent.sales_node import sales_agent_node
 
 logger = logging.getLogger(__name__)
 
+# Palavras-chave que indicam pergunta sobre serviços/portfólio durante qualificação
+_SERVICE_RE = re.compile(
+    r"servi[cç]os?|o que faz(em)?|que produtos?|soluc[oõ]es?|o que oferec"
+    r"|o que vendes?|que tipo de|portf[oó]lio|o que [eé] a bisca"
+    r"|mais informa[cç]|como funcionam?|o que fazem|fazem o qu[eê]",
+    re.IGNORECASE,
+)
+
 
 def _dispatcher_router(state: LusambuState) -> str:
-    """Entry point: se Sales Agent está activo, vai directo. Caso contrário, Lusambu."""
+    """Entry point: se Sales Agent está activo, vai directo.
+    Se o lead perguntar sobre serviços durante qualificação, Sales Agent responde com RAG.
+    Caso contrário, Lusambu."""
     if state.get("sales_agent_active"):
         return "sales_agent"
+    # Pergunta sobre serviços durante qualificação → Sales Agent responde directamente com RAG
+    if state.get("stage", "qualify") == "qualify":
+        messages = state.get("messages", [])
+        last_human = next(
+            (m.content for m in reversed(messages) if isinstance(m, HumanMessage)), ""
+        )
+        if last_human and _SERVICE_RE.search(last_human):
+            logger.info("Dispatcher: pergunta de serviços detectada → Sales Agent (RAG)")
+            return "sales_agent"
     return "lusambu"
 
 
