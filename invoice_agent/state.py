@@ -16,3 +16,4 @@ class InvoiceState(TypedDict, total=False):
     invoice_id: str          # InvoiceNinja invoice ID
     invoice_number: str      # número humano da factura
     invoice_draft_id: str    # UUID em invoice_drafts
+    notion_page_url: str     # URL da página criada no Notion

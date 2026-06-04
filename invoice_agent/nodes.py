@@ -17,6 +17,7 @@ from integrations.supabase_client import (
     upsert_lead,
 )
 from integrations.invoiceninja import get_or_create_client, create_invoice, send_invoice_email
+from integrations.notion import create_notion_project
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +164,16 @@ async def finalize_invoice_node(state: InvoiceState) -> InvoiceState:
     # 3. Enviar factura por email ao cliente
     await send_invoice_email(invoice_id)
 
-    # 4. Registar no Supabase
+    # 4. Criar projecto no Notion
+    notion_url = await create_notion_project(
+        empresa=empresa,
+        sector=state.get("sector", ""),
+        valor=valor_negociado,
+        whatsapp=state["whatsapp"],
+        invoice_number=invoice_number,
+    )
+
+    # 5. Registar no Supabase
     now = datetime.now(timezone.utc).isoformat()
     if draft_id:
         await update_invoice_draft(draft_id, {
@@ -173,16 +183,18 @@ async def finalize_invoice_node(state: InvoiceState) -> InvoiceState:
             "invoice_number": invoice_number,
             "data_faturacao": now,
             "status_pagamento": "pendente",
+            "notion_page_url": notion_url,
         })
 
     await upsert_lead({"whatsapp": state["whatsapp"], "status": "fatura_enviada"})
-    logger.info(f"Factura {invoice_number} enviada ao cliente {email}")
+    logger.info(f"Factura {invoice_number} enviada ao cliente {email}. Projecto Notion: {notion_url}")
 
     return {
         **state,
         "client_id": client_id,
         "invoice_id": invoice_id,
         "invoice_number": invoice_number,
+        "notion_page_url": notion_url,
     }
 
 

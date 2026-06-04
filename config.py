@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     DASHBOARD_KEY: str = ""
     CALENDLY_LINK: str = ""
     OPENAI_API_KEY: str = ""  # necessário para RAG; deixar vazio desactiva RAG
+    INVOICENINJA_URL: str = "https://invoices.biscaplus.com"
+    INVOICENINJA_API_KEY: str = ""
+    NOTION_API_KEY: str = ""
+    NOTION_PROJECTS_DB_ID: str = ""  # ID da base de dados "Projectos" no Notion
 
 
 settings = Settings()
