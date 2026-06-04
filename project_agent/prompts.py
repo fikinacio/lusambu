@@ -39,6 +39,6 @@ Fidel Kussunga | Bisca+\
 """
 
 APPROVAL_BUTTONS_2 = [
-    {"buttonId": "aprovar", "buttonText": {"displayText": "✅ Aprovar"}},
-    {"buttonId": "editar",  "buttonText": {"displayText": "✏️ Editar"}},
+    {"buttonId": "aprovar", "buttonText": {"displayText": "✅ Aprovar"}, "type": 1},
+    {"buttonId": "editar",  "buttonText": {"displayText": "✏️ Editar"},  "type": 1},
 ]

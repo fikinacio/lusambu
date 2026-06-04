@@ -239,8 +239,12 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
             "\n\n---\nHISTÓRICO CRM (comunicações anteriores com este lead):\n"
             + mensagens_ctx
             + "\n---\n"
-            "Usa este histórico para continuidade. Não repitas saudações já feitas. "
-            "Refere informações anteriores naturalmente quando relevante."
+            "INSTRUÇÃO CRÍTICA: Esta conversa já está em curso. "
+            "NUNCA uses saudações ('Olá', 'Bom dia', 'Boa tarde', etc.) — já foram feitas. "
+            "NUNCA te apresentes — já foi feito. "
+            "Se o sector, tipo de negócio, empresa ou dor já constarem no histórico, "
+            "NÃO perguntes de novo — usa essa informação directamente para avançar a conversa. "
+            "Responde de forma natural e directa ao conteúdo da última mensagem do lead."
         )
 
     if rag_context:

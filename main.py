@@ -299,11 +299,11 @@ async def _route_fidel_message(text: str) -> None:
     if await get_pending_proposal_for_fidel():
         await _resume_proposal_for_fidel(text)
         return
-    if await get_pending_invoice_for_fidel():
-        await _resume_invoice_for_fidel(text)
-        return
     if await get_pending_project_event_for_fidel() or await get_draft_project_for_fidel():
         await _resume_project_for_fidel(text)
+        return
+    if await get_pending_invoice_for_fidel():
+        await _resume_invoice_for_fidel(text)
         return
     logger.warning("Fidel respondeu mas não há proposta, factura ou evento de projecto pendente.")
 
