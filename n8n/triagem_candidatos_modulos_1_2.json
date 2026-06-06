@@ -1,0 +1,751 @@
+{
+  "name": "Triagem de Candidatos — Módulos 1 & 2",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "nodes": [
+    {
+      "id": "a1b2c3d4-0001-0000-0000-000000000001",
+      "name": "Sticky Note - Módulo 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [150, 200],
+      "parameters": {
+        "content": "## 📥 MÓDULO 1 — RECEPÇÃO\n\nRecebe e filtra mensagens da Evolution API via webhook.\n\n**Fluxo:**\n1. Webhook autentica via header secret\n2. Responde 200 OK imediatamente (paralelo)\n3. Filtra: só `messages.upsert`, não enviadas por nós, não grupos\n4. Normaliza payload para estrutura uniforme\n\n**Credenciais:** nenhuma necessária neste módulo",
+        "height": 430,
+        "width": 760,
+        "color": 2
+      }
+    },
+    {
+      "id": "a1b2c3d4-0002-0000-0000-000000000002",
+      "name": "Sticky Note - Módulo 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1000, 20],
+      "parameters": {
+        "content": "## 🎯 MÓDULO 2 — PROCESSAMENTO MULTIMODAL\n\nDetecta o tipo de conteúdo e processa cada formato:\n\n- **TEXTO** → extracção directa da mensagem\n- **ÁUDIO** → Evolution API Base64 → Whisper → transcrição PT\n- **IMAGEM** → Evolution API Base64 → GPT-4o-mini → texto/OCR\n- **DOCUMENTO** → Evolution API Base64 → ExtractFromFile → texto\n- **DESCONHECIDO** → mensagem de tipo não suportado\n\nTodos os ramos convergem no nó **Unificar Conteúdo** com campos normalizados:\n`extracted_content`, `content_type`, `phone`, `candidate_name`, `timestamp`\n\n**Credenciais:** `evolutionApiKey`, `openAiApi`",
+        "height": 830,
+        "width": 1420,
+        "color": 3
+      }
+    },
+    {
+      "id": "a1b2c3d4-1001-0000-0000-000000000001",
+      "name": "📥 Receber Mensagem WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 310],
+      "webhookId": "triagem-candidatos-webhook-001",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "triagem-candidatos",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "notes": "Ponto de entrada de todas as mensagens recebidas via Evolution API"
+    },
+    {
+      "id": "a1b2c3d4-1002-0000-0000-000000000002",
+      "name": "✅ Responder 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 530],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"received\" }",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-1003-0000-0000-000000000003",
+      "name": "🔍 É Mensagem de Candidato?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 310],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond-event-check",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "messages.upsert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-fromme-check",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "rightType": "boolean"
+              }
+            },
+            {
+              "id": "cond-group-check",
+              "leftValue": "={{ $json.body.data.key.remoteJid }}",
+              "rightValue": "@g.us",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-1004-0000-0000-000000000004",
+      "name": "⛔ Ignorar Mensagem",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [760, 530],
+      "parameters": {}
+    },
+    {
+      "id": "a1b2c3d4-1005-0000-0000-000000000005",
+      "name": "🧹 Normalizar Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 310],
+      "parameters": {
+        "jsCode": "const data = $json.body.data;\nconst msgObj = data.message || {};\nconst messageType = Object.keys(msgObj)[0] || 'unknown';\n\nreturn [{\n  json: {\n    phone: data.key.remoteJid.replace('@s.whatsapp.net', ''),\n    candidate_name: data.pushName || '',\n    message_type: messageType,\n    timestamp: data.messageTimestamp,\n    raw_key: JSON.stringify(data.key),\n    raw_message: JSON.stringify(msgObj),\n    instance: $json.body.instance\n  }\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-2001-0000-0000-000000000001",
+      "name": "🎯 Detectar Tipo de Conteúdo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1060, 310],
+      "parameters": {
+        "mode": "rules",
+        "options": {
+          "fallbackOutput": "extra",
+          "allMatchingOutputs": false
+        },
+        "rules": {
+          "values": [
+            {
+              "outputKey": "TEXTO",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "id": "sw-texto-conv",
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "sw-texto-ext",
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "extendedTextMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "AUDIO",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "sw-audio",
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "audioMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "IMAGEM",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "sw-imagem",
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "imageMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "DOCUMENTO",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "sw-documento",
+                    "leftValue": "={{ $json.message_type }}",
+                    "rightValue": "documentMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-2002-0000-0000-000000000002",
+      "name": "📝 Extrair Texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 90],
+      "parameters": {
+        "jsCode": "const msg = JSON.parse($json.raw_message);\nconst text = msg.conversation || msg.extendedTextMessage?.text || '';\n\nreturn [{\n  json: {\n    ...$json,\n    extracted_content: text,\n    content_type: 'text',\n    binary_data: null\n  }\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-2003-0000-0000-000000000003",
+      "name": "⬇️ Obter Áudio Base64",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 260],
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.biscaplus.com/chat/getBase64FromMediaMessage/bmst",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "evolutionApiKey"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-2004-0000-0000-000000000004",
+      "name": "🔄 Converter Áudio para Binário",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 260],
+      "parameters": {
+        "jsCode": "const base64 = $json.base64;\nconst meta = $('🧹 Normalizar Payload').first().json;\nconst msg = JSON.parse(meta.raw_message);\n\nconst mime = msg.audioMessage?.mimetype || 'audio/ogg; codecs=opus';\nconst mimeClean = mime.split(';')[0].trim();\n\nconst extMap = {\n  'audio/ogg': 'ogg',\n  'audio/mpeg': 'mp3',\n  'audio/mp4': 'mp4',\n  'audio/wav': 'wav',\n  'audio/x-wav': 'wav',\n  'audio/m4a': 'm4a',\n  'audio/webm': 'webm'\n};\nconst ext = extMap[mimeClean] || 'ogg';\n\nconst buffer = Buffer.from(base64, 'base64');\n\nreturn [{\n  json: { ...meta, audio_mime: mimeClean, audio_ext: ext },\n  binary: {\n    data: {\n      data: buffer,\n      mimeType: mimeClean,\n      fileName: `audio.${ext}`\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-2005-0000-0000-000000000005",
+      "name": "🎙️ Transcrever Áudio (Whisper)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1820, 260],
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "data",
+        "options": {
+          "language": "pt",
+          "prompt": "Candidato a emprego a falar sobre experiência profissional, disponibilidade e expectativa salarial em Angola."
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "openAiApi"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-2006-0000-0000-000000000006",
+      "name": "🔄 Mapear Output Áudio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2070, 260],
+      "parameters": {
+        "jsCode": "const transcription = $input.first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: transcription.text || '',\n    content_type: 'audio'\n  }\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-2007-0000-0000-000000000007",
+      "name": "⬇️ Obter Imagem Base64",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 430],
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.biscaplus.com/chat/getBase64FromMediaMessage/bmst",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "evolutionApiKey"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-2008-0000-0000-000000000008",
+      "name": "🖼️ Analisar Imagem (GPT-4o)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1570, 430],
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "inputType": "base64",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "imageBase64": "={{ $json.base64 }}",
+        "text": "Esta imagem foi enviada por um candidato a emprego em Angola. Extrai todo o texto visível — especialmente dados de CV, certificados, documentos de identificação, ou qualquer informação profissional relevante. Se não houver texto, descreve o conteúdo da imagem."
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "openAiApi"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-2009-0000-0000-000000000009",
+      "name": "🔄 Mapear Output Imagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1820, 430],
+      "parameters": {
+        "jsCode": "const imageResult = $input.first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nconst extractedText = imageResult.content\n  || imageResult.text\n  || imageResult.choices?.[0]?.message?.content\n  || JSON.stringify(imageResult);\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: extractedText,\n    content_type: 'image'\n  }\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-2010-0000-0000-000000000010",
+      "name": "⬇️ Obter Documento Base64",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 600],
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.biscaplus.com/chat/getBase64FromMediaMessage/bmst",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "evolutionApiKey"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-2011-0000-0000-000000000011",
+      "name": "🔄 Converter Documento para Binário",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 600],
+      "parameters": {
+        "jsCode": "const base64 = $json.base64;\nconst meta = $('🧹 Normalizar Payload').first().json;\nconst msg = JSON.parse(meta.raw_message);\n\nconst mime = msg.documentMessage?.mimetype || 'application/octet-stream';\nconst fileName = msg.documentMessage?.fileName || 'documento';\n\nconst mimeToOp = {\n  'application/pdf': 'pdf',\n  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',\n  'application/msword': 'docx',\n  'text/plain': 'text'\n};\nconst fileOp = mimeToOp[mime] || 'pdf';\n\nconst buffer = Buffer.from(base64, 'base64');\n\nreturn [{\n  json: { ...meta, doc_mime: mime, doc_filename: fileName, doc_operation: fileOp },\n  binary: {\n    data: {\n      data: buffer,\n      mimeType: mime,\n      fileName: fileName\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-2012-0000-0000-000000000012",
+      "name": "📄 Extrair Texto do Documento",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [1820, 600],
+      "parameters": {
+        "operation": "={{ $json.doc_operation }}",
+        "binaryPropertyName": "data",
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-2013-0000-0000-000000000013",
+      "name": "🔄 Mapear Output Documento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2070, 600],
+      "parameters": {
+        "jsCode": "const docData = $input.first().json;\nconst docMeta = $('🔄 Converter Documento para Binário').first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: docData.text || docData.data || '',\n    content_type: 'document',\n    file_type: docMeta.doc_mime || 'application/pdf',\n    file_name: docMeta.doc_filename || 'documento'\n  }\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-2014-0000-0000-000000000014",
+      "name": "❓ Tipo Desconhecido",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1320, 770],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "includeOtherFields": true,
+        "fields": {
+          "values": [
+            {
+              "name": "extracted_content",
+              "type": "stringValue",
+              "string": "Tipo de mensagem não suportado pelo sistema."
+            },
+            {
+              "name": "content_type",
+              "type": "stringValue",
+              "string": "unknown"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-2015-0000-0000-000000000015",
+      "name": "🔗 Unificar Conteúdo",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2320, 430],
+      "parameters": {
+        "mode": "chooseBranch",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "📥 Receber Mensagem WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "🔍 É Mensagem de Candidato?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "✅ Responder 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 É Mensagem de Candidato?": {
+      "main": [
+        [
+          {
+            "node": "🧹 Normalizar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⛔ Ignorar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧹 Normalizar Payload": {
+      "main": [
+        [
+          {
+            "node": "🎯 Detectar Tipo de Conteúdo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎯 Detectar Tipo de Conteúdo": {
+      "main": [
+        [
+          {
+            "node": "📝 Extrair Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⬇️ Obter Áudio Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⬇️ Obter Imagem Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⬇️ Obter Documento Base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❓ Tipo Desconhecido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Extrair Texto": {
+      "main": [
+        [
+          {
+            "node": "🔗 Unificar Conteúdo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⬇️ Obter Áudio Base64": {
+      "main": [
+        [
+          {
+            "node": "🔄 Converter Áudio para Binário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Converter Áudio para Binário": {
+      "main": [
+        [
+          {
+            "node": "🎙️ Transcrever Áudio (Whisper)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎙️ Transcrever Áudio (Whisper)": {
+      "main": [
+        [
+          {
+            "node": "🔄 Mapear Output Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Mapear Output Áudio": {
+      "main": [
+        [
+          {
+            "node": "🔗 Unificar Conteúdo",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "⬇️ Obter Imagem Base64": {
+      "main": [
+        [
+          {
+            "node": "🖼️ Analisar Imagem (GPT-4o)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🖼️ Analisar Imagem (GPT-4o)": {
+      "main": [
+        [
+          {
+            "node": "🔄 Mapear Output Imagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Mapear Output Imagem": {
+      "main": [
+        [
+          {
+            "node": "🔗 Unificar Conteúdo",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "⬇️ Obter Documento Base64": {
+      "main": [
+        [
+          {
+            "node": "🔄 Converter Documento para Binário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Converter Documento para Binário": {
+      "main": [
+        [
+          {
+            "node": "📄 Extrair Texto do Documento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Extrair Texto do Documento": {
+      "main": [
+        [
+          {
+            "node": "🔄 Mapear Output Documento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Mapear Output Documento": {
+      "main": [
+        [
+          {
+            "node": "🔗 Unificar Conteúdo",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "❓ Tipo Desconhecido": {
+      "main": [
+        [
+          {
+            "node": "🔗 Unificar Conteúdo",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    }
+  }
+}
