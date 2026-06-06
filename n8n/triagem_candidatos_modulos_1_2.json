@@ -1,82 +1,98 @@
 {
-  "name": "Triagem de Candidatos — Módulos 1 & 2",
+  "name": "Triagem de Candidatos — Módulos 1, 2 & 3",
   "active": false,
   "settings": {
     "executionOrder": "v1"
   },
+  "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": ""
+    "instanceId": "f982cebffd5b4c8b2bb4af3d9eeda99d230671f5bae4d874a9c46212226806ce"
   },
   "nodes": [
     {
-      "id": "a1b2c3d4-0001-0000-0000-000000000001",
-      "name": "Sticky Note - Módulo 1",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [150, 200],
       "parameters": {
         "content": "## 📥 MÓDULO 1 — RECEPÇÃO\n\nRecebe e filtra mensagens da Evolution API via webhook.\n\n**Fluxo:**\n1. Webhook autentica via header secret\n2. Responde 200 OK imediatamente (paralelo)\n3. Filtra: só `messages.upsert`, não enviadas por nós, não grupos\n4. Normaliza payload para estrutura uniforme\n\n**Credenciais:** nenhuma necessária neste módulo",
         "height": 430,
         "width": 760,
         "color": 2
-      }
-    },
-    {
-      "id": "a1b2c3d4-0002-0000-0000-000000000002",
-      "name": "Sticky Note - Módulo 2",
+      },
+      "id": "bbcf6bf9-71a5-45f2-9081-d4268e653dc5",
+      "name": "Sticky Note - Módulo 1",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1000, 20],
+      "position": [-848, 192]
+    },
+    {
       "parameters": {
         "content": "## 🎯 MÓDULO 2 — PROCESSAMENTO MULTIMODAL\n\nDetecta o tipo de conteúdo e processa cada formato:\n\n- **TEXTO** → extracção directa da mensagem\n- **ÁUDIO** → Evolution API Base64 → Whisper → transcrição PT\n- **IMAGEM** → Evolution API Base64 → GPT-4o-mini → texto/OCR\n- **DOCUMENTO** → Evolution API Base64 → ExtractFromFile → texto\n- **DESCONHECIDO** → mensagem de tipo não suportado\n\nTodos os ramos convergem no nó **Unificar Conteúdo** com campos normalizados:\n`extracted_content`, `content_type`, `phone`, `candidate_name`, `timestamp`\n\n**Credenciais:** `evolutionApiKey`, `openAiApi`",
         "height": 830,
         "width": 1420,
         "color": 3
-      }
+      },
+      "id": "33728261-b48b-4dde-9faa-c756a5e8002b",
+      "name": "Sticky Note - Módulo 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -32]
     },
     {
-      "id": "a1b2c3d4-1001-0000-0000-000000000001",
-      "name": "📥 Receber Mensagem WhatsApp",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [200, 310],
-      "webhookId": "triagem-candidatos-webhook-001",
+      "parameters": {
+        "content": "## 🧠 MÓDULO 3 — GESTÃO DE SESSÃO E AGENTE IA\n\nGere o estado da conversa no Supabase e corre o ciclo de raciocínio do agente GPT-4o com tool use.\n\n**Fluxo:**\n1. Busca sessão existente (ou cria nova)\n2. Consolida histórico de conversa\n3. Prepara contexto para o agente IA\n4. Chama GPT-4o com tools: `qualificar_candidato`, `encerrar_sessao`, `buscar_info_vaga`\n5. Se tool use → executa tool → devolve resultado ao agente (loop até 5 iterações)\n6. Se resposta final → avança para Módulo 4\n\n**Credenciais:** `openAiApiKey`, `supabaseAnonKey`\n\n**⚠️ Ramo FALSE do nó 12 → Módulo 4 (envio de resposta)**",
+        "height": 830,
+        "width": 2460,
+        "color": 5
+      },
+      "id": "c3d4e5f6-0003-0000-0000-000000000003",
+      "name": "Sticky Note - Módulo 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1540, -32]
+    },
+    {
       "parameters": {
         "httpMethod": "POST",
         "path": "triagem-candidatos",
-        "responseMode": "responseNode",
         "authentication": "headerAuth",
+        "responseMode": "responseNode",
         "options": {}
+      },
+      "id": "f44b373b-6401-4d2a-a794-e2a1875d10b4",
+      "name": "📥 Receber Mensagem WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-800, 304],
+      "webhookId": "triagem-candidatos-webhook-001",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "TG9LZC2NpnedbEyj",
+          "name": "x-api-key"
+        }
       },
       "notes": "Ponto de entrada de todas as mensagens recebidas via Evolution API"
     },
     {
-      "id": "a1b2c3d4-1002-0000-0000-000000000002",
-      "name": "✅ Responder 200 OK",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [460, 530],
       "parameters": {
         "respondWith": "json",
         "responseBody": "{ \"status\": \"received\" }",
         "options": {
           "responseCode": 200
         }
-      }
+      },
+      "id": "87d1681d-4fc8-4dac-a2b0-f55d4ccc6f9a",
+      "name": "✅ Responder 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [-544, 512]
     },
     {
-      "id": "a1b2c3d4-1003-0000-0000-000000000003",
-      "name": "🔍 É Mensagem de Candidato?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [500, 310],
       "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "strict",
+            "version": 1
           },
           "combinator": "and",
           "conditions": [
@@ -111,49 +127,43 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "b55f8eca-2b26-4da4-90ed-946992046e53",
+      "name": "🔍 É Mensagem de Candidato?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-496, 304]
     },
     {
-      "id": "a1b2c3d4-1004-0000-0000-000000000004",
+      "parameters": {},
+      "id": "4801e920-cdea-4753-a1c2-d94d04e04fdf",
       "name": "⛔ Ignorar Mensagem",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [760, 530],
-      "parameters": {}
+      "position": [-240, 512]
     },
     {
-      "id": "a1b2c3d4-1005-0000-0000-000000000005",
+      "parameters": {
+        "jsCode": "const data = $json.body.data;\nconst msgObj = data.message || {};\nconst messageType = Object.keys(msgObj)[0] || 'unknown';\n\nreturn [{\n  json: {\n    phone: data.key.remoteJid.replace('@s.whatsapp.net', ''),\n    candidate_name: data.pushName || '',\n    message_type: messageType,\n    timestamp: data.messageTimestamp,\n    raw_key: JSON.stringify(data.key),\n    raw_message: JSON.stringify(msgObj),\n    instance: $json.body.instance\n  }\n}];"
+      },
+      "id": "76fa5994-046f-4a29-a8d6-2f9f70af49bc",
       "name": "🧹 Normalizar Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [760, 310],
-      "parameters": {
-        "jsCode": "const data = $json.body.data;\nconst msgObj = data.message || {};\nconst messageType = Object.keys(msgObj)[0] || 'unknown';\n\nreturn [{\n  json: {\n    phone: data.key.remoteJid.replace('@s.whatsapp.net', ''),\n    candidate_name: data.pushName || '',\n    message_type: messageType,\n    timestamp: data.messageTimestamp,\n    raw_key: JSON.stringify(data.key),\n    raw_message: JSON.stringify(msgObj),\n    instance: $json.body.instance\n  }\n}];"
-      }
+      "position": [-240, 304]
     },
     {
-      "id": "a1b2c3d4-2001-0000-0000-000000000001",
-      "name": "🎯 Detectar Tipo de Conteúdo",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [1060, 310],
       "parameters": {
-        "mode": "rules",
-        "options": {
-          "fallbackOutput": "extra",
-          "allMatchingOutputs": false
-        },
         "rules": {
           "values": [
             {
-              "outputKey": "TEXTO",
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 2
                 },
-                "combinator": "or",
                 "conditions": [
                   {
                     "id": "sw-texto-conv",
@@ -173,18 +183,18 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "or"
               }
             },
             {
-              "outputKey": "AUDIO",
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 2
                 },
-                "combinator": "and",
                 "conditions": [
                   {
                     "id": "sw-audio",
@@ -195,18 +205,18 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             },
             {
-              "outputKey": "IMAGEM",
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 2
                 },
-                "combinator": "and",
                 "conditions": [
                   {
                     "id": "sw-imagem",
@@ -217,18 +227,18 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             },
             {
-              "outputKey": "DOCUMENTO",
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict"
+                  "typeValidation": "strict",
+                  "version": 2
                 },
-                "combinator": "and",
                 "conditions": [
                   {
                     "id": "sw-documento",
@@ -239,117 +249,117 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             }
           ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "allMatchingOutputs": false
         }
-      }
+      },
+      "id": "2da9e261-d5c3-4354-9454-0328e3caefa6",
+      "name": "🎯 Detectar Tipo de Conteúdo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [64, 304]
     },
     {
-      "id": "a1b2c3d4-2002-0000-0000-000000000002",
+      "parameters": {
+        "jsCode": "const msg = JSON.parse($json.raw_message);\nconst text = msg.conversation || msg.extendedTextMessage?.text || '';\n\nreturn [{\n  json: {\n    ...$json,\n    extracted_content: text,\n    content_type: 'text',\n    binary_data: null\n  }\n}];"
+      },
+      "id": "dbb1f793-67cf-4c4e-bcf4-0ee342ed4d75",
       "name": "📝 Extrair Texto",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, 90],
-      "parameters": {
-        "jsCode": "const msg = JSON.parse($json.raw_message);\nconst text = msg.conversation || msg.extendedTextMessage?.text || '';\n\nreturn [{\n  json: {\n    ...$json,\n    extracted_content: text,\n    content_type: 'text',\n    binary_data: null\n  }\n}];"
-      }
+      "position": [320, 80]
     },
     {
-      "id": "a1b2c3d4-2003-0000-0000-000000000003",
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.biscaplus.com/chat/getBase64FromMediaMessage/bmst",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "66aad69b-b8b4-4ccf-a0fa-c6c0bff7017f",
       "name": "⬇️ Obter Áudio Base64",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 260],
-      "parameters": {
-        "method": "POST",
-        "url": "https://evolution.biscaplus.com/chat/getBase64FromMediaMessage/bmst",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "string",
-        "body": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
-      },
+      "position": [320, 240],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "",
-          "name": "evolutionApiKey"
+          "id": "TG9LZC2NpnedbEyj",
+          "name": "x-api-key"
         }
       }
     },
     {
-      "id": "a1b2c3d4-2004-0000-0000-000000000004",
+      "parameters": {
+        "jsCode": "const base64 = $json.base64;\nconst meta = $('🧹 Normalizar Payload').first().json;\nconst msg = JSON.parse(meta.raw_message);\n\nconst mime = msg.audioMessage?.mimetype || 'audio/ogg; codecs=opus';\nconst mimeClean = mime.split(';')[0].trim();\n\nconst extMap = {\n  'audio/ogg': 'ogg',\n  'audio/mpeg': 'mp3',\n  'audio/mp4': 'mp4',\n  'audio/wav': 'wav',\n  'audio/x-wav': 'wav',\n  'audio/m4a': 'm4a',\n  'audio/webm': 'webm'\n};\nconst ext = extMap[mimeClean] || 'ogg';\n\nconst buffer = Buffer.from(base64, 'base64');\n\nreturn [{\n  json: { ...meta, audio_mime: mimeClean, audio_ext: ext },\n  binary: {\n    data: {\n      data: buffer,\n      mimeType: mimeClean,\n      fileName: `audio.${ext}`\n    }\n  }\n}];"
+      },
+      "id": "8171429e-995b-461f-8f35-306cbcec57a9",
       "name": "🔄 Converter Áudio para Binário",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1570, 260],
-      "parameters": {
-        "jsCode": "const base64 = $json.base64;\nconst meta = $('🧹 Normalizar Payload').first().json;\nconst msg = JSON.parse(meta.raw_message);\n\nconst mime = msg.audioMessage?.mimetype || 'audio/ogg; codecs=opus';\nconst mimeClean = mime.split(';')[0].trim();\n\nconst extMap = {\n  'audio/ogg': 'ogg',\n  'audio/mpeg': 'mp3',\n  'audio/mp4': 'mp4',\n  'audio/wav': 'wav',\n  'audio/x-wav': 'wav',\n  'audio/m4a': 'm4a',\n  'audio/webm': 'webm'\n};\nconst ext = extMap[mimeClean] || 'ogg';\n\nconst buffer = Buffer.from(base64, 'base64');\n\nreturn [{\n  json: { ...meta, audio_mime: mimeClean, audio_ext: ext },\n  binary: {\n    data: {\n      data: buffer,\n      mimeType: mimeClean,\n      fileName: `audio.${ext}`\n    }\n  }\n}];"
-      }
+      "position": [576, 240]
     },
     {
-      "id": "a1b2c3d4-2005-0000-0000-000000000005",
-      "name": "🎙️ Transcrever Áudio (Whisper)",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.4,
-      "position": [1820, 260],
       "parameters": {
         "resource": "audio",
         "operation": "transcribe",
-        "binaryPropertyName": "data",
         "options": {
-          "language": "pt",
-          "prompt": "Candidato a emprego a falar sobre experiência profissional, disponibilidade e expectativa salarial em Angola."
+          "language": "pt"
         }
       },
+      "id": "b2b1fa90-7ae0-4287-8c2c-888e0972fe9b",
+      "name": "🎙️ Transcrever Áudio (Whisper)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [832, 240],
       "credentials": {
         "openAiApi": {
-          "id": "",
-          "name": "openAiApi"
+          "id": "zoDR2iOO7PHL7DTd",
+          "name": "OpenAI account"
         }
       }
     },
     {
-      "id": "a1b2c3d4-2006-0000-0000-000000000006",
+      "parameters": {
+        "jsCode": "const transcription = $input.first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: transcription.text || '',\n    content_type: 'audio'\n  }\n}];"
+      },
+      "id": "6041ed60-ec60-4459-b61e-53f44cb12664",
       "name": "🔄 Mapear Output Áudio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2070, 260],
-      "parameters": {
-        "jsCode": "const transcription = $input.first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: transcription.text || '',\n    content_type: 'audio'\n  }\n}];"
-      }
+      "position": [1072, 240]
     },
     {
-      "id": "a1b2c3d4-2007-0000-0000-000000000007",
-      "name": "⬇️ Obter Imagem Base64",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1320, 430],
       "parameters": {
         "method": "POST",
         "url": "https://evolution.biscaplus.com/chat/getBase64FromMediaMessage/bmst",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "string",
-        "body": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -359,6 +369,9 @@
             }
           ]
         },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
         "options": {
           "response": {
             "response": {
@@ -367,63 +380,60 @@
           }
         }
       },
+      "id": "d57e4a06-f2b9-4183-90ef-5ab25b29ff84",
+      "name": "⬇️ Obter Imagem Base64",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [320, 416],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "",
-          "name": "evolutionApiKey"
+          "id": "TG9LZC2NpnedbEyj",
+          "name": "x-api-key"
         }
       }
     },
     {
-      "id": "a1b2c3d4-2008-0000-0000-000000000008",
-      "name": "🖼️ Analisar Imagem (GPT-4o)",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.4,
-      "position": [1570, 430],
       "parameters": {
         "resource": "image",
         "operation": "analyze",
-        "inputType": "base64",
         "modelId": {
           "__rl": true,
           "value": "gpt-4o-mini",
           "mode": "list",
           "cachedResultName": "gpt-4o-mini"
         },
-        "imageBase64": "={{ $json.base64 }}",
-        "text": "Esta imagem foi enviada por um candidato a emprego em Angola. Extrai todo o texto visível — especialmente dados de CV, certificados, documentos de identificação, ou qualquer informação profissional relevante. Se não houver texto, descreve o conteúdo da imagem."
+        "text": "Esta imagem foi enviada por um candidato a emprego em Angola. Extrai todo o texto visível — especialmente dados de CV, certificados, documentos de identificação, ou qualquer informação profissional relevante. Se não houver texto, descreve o conteúdo da imagem.",
+        "inputType": "base64",
+        "options": {}
       },
+      "id": "2d1134ee-62a4-49b7-b7dd-6bf97656cb70",
+      "name": "🖼️ Analisar Imagem (GPT-4o)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [576, 416],
       "credentials": {
         "openAiApi": {
-          "id": "",
-          "name": "openAiApi"
+          "id": "zoDR2iOO7PHL7DTd",
+          "name": "OpenAI account"
         }
       }
     },
     {
-      "id": "a1b2c3d4-2009-0000-0000-000000000009",
+      "parameters": {
+        "jsCode": "const imageResult = $input.first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nconst extractedText = imageResult.content\n  || imageResult.text\n  || imageResult.choices?.[0]?.message?.content\n  || JSON.stringify(imageResult);\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: extractedText,\n    content_type: 'image'\n  }\n}];"
+      },
+      "id": "0232c580-2710-4f67-a2ae-162a3f9a8263",
       "name": "🔄 Mapear Output Imagem",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1820, 430],
-      "parameters": {
-        "jsCode": "const imageResult = $input.first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nconst extractedText = imageResult.content\n  || imageResult.text\n  || imageResult.choices?.[0]?.message?.content\n  || JSON.stringify(imageResult);\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: extractedText,\n    content_type: 'image'\n  }\n}];"
-      }
+      "position": [832, 416]
     },
     {
-      "id": "a1b2c3d4-2010-0000-0000-000000000010",
-      "name": "⬇️ Obter Documento Base64",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1320, 600],
       "parameters": {
         "method": "POST",
         "url": "https://evolution.biscaplus.com/chat/getBase64FromMediaMessage/bmst",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "string",
-        "body": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -433,6 +443,9 @@
             }
           ]
         },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: { key: JSON.parse($json.raw_key), message: JSON.parse($json.raw_message) }, convertToMp4: false }) }}",
         "options": {
           "response": {
             "response": {
@@ -441,82 +454,456 @@
           }
         }
       },
+      "id": "ef247dd1-72fe-4774-9440-887be7fe9658",
+      "name": "⬇️ Obter Documento Base64",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [320, 592],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "",
-          "name": "evolutionApiKey"
+          "id": "TG9LZC2NpnedbEyj",
+          "name": "x-api-key"
         }
       }
     },
     {
-      "id": "a1b2c3d4-2011-0000-0000-000000000011",
+      "parameters": {
+        "jsCode": "const base64 = $json.base64;\nconst meta = $('🧹 Normalizar Payload').first().json;\nconst msg = JSON.parse(meta.raw_message);\n\nconst mime = msg.documentMessage?.mimetype || 'application/octet-stream';\nconst fileName = msg.documentMessage?.fileName || 'documento';\n\nconst mimeToOp = {\n  'application/pdf': 'pdf',\n  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',\n  'application/msword': 'docx',\n  'text/plain': 'text'\n};\nconst fileOp = mimeToOp[mime] || 'pdf';\n\nconst buffer = Buffer.from(base64, 'base64');\n\nreturn [{\n  json: { ...meta, doc_mime: mime, doc_filename: fileName, doc_operation: fileOp },\n  binary: {\n    data: {\n      data: buffer,\n      mimeType: mime,\n      fileName: fileName\n    }\n  }\n}];"
+      },
+      "id": "675bccd7-d2ce-4553-af89-4c9e3a216f28",
       "name": "🔄 Converter Documento para Binário",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1570, 600],
-      "parameters": {
-        "jsCode": "const base64 = $json.base64;\nconst meta = $('🧹 Normalizar Payload').first().json;\nconst msg = JSON.parse(meta.raw_message);\n\nconst mime = msg.documentMessage?.mimetype || 'application/octet-stream';\nconst fileName = msg.documentMessage?.fileName || 'documento';\n\nconst mimeToOp = {\n  'application/pdf': 'pdf',\n  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',\n  'application/msword': 'docx',\n  'text/plain': 'text'\n};\nconst fileOp = mimeToOp[mime] || 'pdf';\n\nconst buffer = Buffer.from(base64, 'base64');\n\nreturn [{\n  json: { ...meta, doc_mime: mime, doc_filename: fileName, doc_operation: fileOp },\n  binary: {\n    data: {\n      data: buffer,\n      mimeType: mime,\n      fileName: fileName\n    }\n  }\n}];"
-      }
+      "position": [576, 592]
     },
     {
-      "id": "a1b2c3d4-2012-0000-0000-000000000012",
+      "parameters": {
+        "operation": "={{ $json.doc_operation }}"
+      },
+      "id": "9dc84d0a-c712-478c-b39c-244aa50adf58",
       "name": "📄 Extrair Texto do Documento",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
-      "position": [1820, 600],
-      "parameters": {
-        "operation": "={{ $json.doc_operation }}",
-        "binaryPropertyName": "data",
-        "options": {}
-      }
+      "position": [832, 592]
     },
     {
-      "id": "a1b2c3d4-2013-0000-0000-000000000013",
+      "parameters": {
+        "jsCode": "const docData = $input.first().json;\nconst docMeta = $('🔄 Converter Documento para Binário').first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: docData.text || docData.data || '',\n    content_type: 'document',\n    file_type: docMeta.doc_mime || 'application/pdf',\n    file_name: docMeta.doc_filename || 'documento'\n  }\n}];"
+      },
+      "id": "78cceabb-3542-4fea-80b9-58d1d007d5ac",
       "name": "🔄 Mapear Output Documento",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2070, 600],
-      "parameters": {
-        "jsCode": "const docData = $input.first().json;\nconst docMeta = $('🔄 Converter Documento para Binário').first().json;\nconst meta = $('🧹 Normalizar Payload').first().json;\n\nreturn [{\n  json: {\n    ...meta,\n    extracted_content: docData.text || docData.data || '',\n    content_type: 'document',\n    file_type: docMeta.doc_mime || 'application/pdf',\n    file_name: docMeta.doc_filename || 'documento'\n  }\n}];"
-      }
+      "position": [1072, 592]
     },
     {
-      "id": "a1b2c3d4-2014-0000-0000-000000000014",
+      "parameters": {
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "af605447-e27b-4888-b471-919d9c63eed6",
       "name": "❓ Tipo Desconhecido",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1320, 770],
+      "position": [320, 752]
+    },
+    {
       "parameters": {
-        "mode": "manual",
-        "duplicateItem": false,
-        "includeOtherFields": true,
-        "fields": {
-          "values": [
+        "mode": "chooseBranch"
+      },
+      "id": "7e2c7bcb-4e94-4e0b-9b15-2ce2c2e6e2f3",
+      "name": "🔗 Unificar Conteúdo",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1328, 416]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.supabaseUrl }}/rest/v1/triagem_sessoes?phone=eq.{{ $json.phone }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
             {
-              "name": "extracted_content",
-              "type": "stringValue",
-              "string": "Tipo de mensagem não suportado pelo sistema."
+              "name": "apikey",
+              "value": "={{ $credentials.supabaseAnonKey }}"
             },
             {
-              "name": "content_type",
-              "type": "stringValue",
-              "string": "unknown"
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
             }
           ]
         },
         "options": {}
-      }
+      },
+      "id": "node-7-c3d4e5f6-0007-0000-0000-000000000007",
+      "name": "🗃️ Buscar Sessão Candidato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 416],
+      "notes": "Busca sessão activa no Supabase pela chave phone. Retorna array vazio se não existir."
     },
     {
-      "id": "a1b2c3d4-2015-0000-0000-000000000015",
-      "name": "🔗 Unificar Conteúdo",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [2320, 430],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-8-c3d4e5f6-0008-0000-0000-000000000008",
+      "name": "🔎 Sessão Nova ou Existente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 416],
+      "notes": "TRUE = sessão existente (continua). FALSE = criar sessão nova."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.supabaseUrl }}/rest/v1/triagem_sessoes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"phone\": \"{{ $('🔗 Unificar Conteúdo').item.json.phone }}\",\n  \"status\": \"activa\",\n  \"etapa_actual\": \"INICIO\",\n  \"historico_conversa\": [],\n  \"dados_recolhidos\": {}\n}",
+        "options": {}
+      },
+      "id": "node-8b-c3d4e5f6-008b-0000-0000-00000000008b",
+      "name": "🆕 Criar Sessão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 536],
+      "notes": "Cria nova sessão no Supabase. Prefer: return=representation devolve o registo criado."
+    },
+    {
       "parameters": {
         "mode": "chooseBranch",
+        "output": "input1",
         "options": {}
-      }
+      },
+      "id": "node-9-c3d4e5f6-0009-0000-0000-000000000009",
+      "name": "📋 Sessão Consolidada",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2220, 416],
+      "notes": "Unifica os dois ramos. chooseBranch escolhe o ramo com dados (sessão existente ou recém-criada)."
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const sessao = Array.isArray($json) ? $json[0] : $json;\nconst historico = sessao.historico_conversa || [];\n\nconst mergeNode = $('🔗 Unificar Conteúdo').item.json;\nconst contentType = mergeNode.content_type;\nconst extractedContent = mergeNode.extracted_content;\nconst binaryData = mergeNode.binary_data;\nconst phone = mergeNode.phone;\nconst candidateName = mergeNode.candidate_name;\n\nconst systemMsg = {\n  role: 'system',\n  content: 'Es um assistente de triagem de candidatos chamado Luisa, simpatica e profissional. Trabalhas para uma empresa angolana e conduzes entrevistas de triagem pelo WhatsApp.\\n\\nO teu objectivo e recolher obrigatoriamente estes dados:\\n1. Nome completo\\n2. Experiencia profissional (anos e area)\\n3. Disponibilidade (imediata, 15 dias, 30 dias, outra)\\n4. Expectativa salarial mensal em AOA\\n5. Nivel de escolaridade\\n6. Localizacao (bairro e municipio)\\n\\nREGRAS:\\n- Faz sempre UMA pergunta de cada vez, de forma natural\\n- Adapta a linguagem ao registo do candidato\\n- Se receberes um CV em documento ou imagem, extrai as informacoes disponiveis e confirma com o candidato em vez de perguntar de novo\\n- Se receberes audio, usa a transcricao para continuar a conversa naturalmente\\n- Quando tiveres todos os dados obrigatorios confirmados, usa a tool qualificar_candidato\\n- Se o candidato nao responder de forma util apos 3 tentativas, usa encerrar_sessao com motivo sem_resposta\\n- Responde sempre em portugues de Angola\\n- Nunca prometas emprego - apenas recolhes informacao para a equipa'\n};\n\nlet novaMsg;\nif (contentType === 'text') {\n  novaMsg = { role: 'user', content: extractedContent };\n} else if (contentType === 'audio') {\n  novaMsg = { role: 'user', content: '[Transcricao de voz]: ' + extractedContent };\n} else if (contentType === 'image') {\n  novaMsg = { role: 'user', content: [\n    { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + binaryData } },\n    { type: 'text', text: 'Candidato enviou esta imagem.' }\n  ]};\n} else if (contentType === 'document') {\n  novaMsg = { role: 'user', content: '[Documento]: ' + extractedContent };\n} else {\n  novaMsg = { role: 'user', content: 'Mensagem nao suportada.' };\n}\n\nconst base = historico.length > 0 && historico[0].role === 'system' ? historico : [systemMsg, ...historico];\n\nreturn [{ json: {\n  messages: [...base, novaMsg],\n  phone: phone,\n  candidate_name: candidateName,\n  sessao_id: sessao.id,\n  iteracao: 0\n}}];"
+      },
+      "id": "node-10-c3d4e5f6-0010-0000-0000-000000000010",
+      "name": "🧠 Preparar Contexto IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 416],
+      "notes": "Constrói array messages para OpenAI. System prompt como role:system no índice 0. Imagem como image_url data URI. PDF enviado como texto extraído."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.openAiApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"model\": \"gpt-4o\",\n  \"max_tokens\": 1024,\n  \"tools\": [\n    { \"type\": \"function\", \"function\": { \"name\": \"qualificar_candidato\", \"description\": \"Submete o perfil completo do candidato. Usar apenas quando todos os campos obrigatorios estiverem recolhidos e confirmados.\", \"parameters\": { \"type\": \"object\", \"properties\": { \"nome\": { \"type\": \"string\" }, \"telefone\": { \"type\": \"string\" }, \"experiencia_anos\": { \"type\": \"number\" }, \"area_experiencia\": { \"type\": \"string\" }, \"disponibilidade\": { \"type\": \"string\", \"enum\": [\"imediata\", \"15_dias\", \"30_dias\", \"outro\"] }, \"disponibilidade_detalhe\": { \"type\": \"string\" }, \"expectativa_salarial_aoa\": { \"type\": \"number\" }, \"escolaridade\": { \"type\": \"string\", \"enum\": [\"basico\", \"medio\", \"tecnico\", \"licenciatura\", \"mestrado\", \"doutoramento\"] }, \"localizacao\": { \"type\": \"string\" }, \"tem_cv\": { \"type\": \"boolean\" }, \"notas_adicionais\": { \"type\": \"string\" }, \"score_estimado\": { \"type\": \"number\", \"minimum\": 0, \"maximum\": 100 } }, \"required\": [\"nome\", \"telefone\", \"experiencia_anos\", \"area_experiencia\", \"disponibilidade\", \"expectativa_salarial_aoa\", \"escolaridade\", \"localizacao\"] } } },\n    { \"type\": \"function\", \"function\": { \"name\": \"encerrar_sessao\", \"description\": \"Encerra a sessao sem qualificacao. Usar quando o candidato desiste, nao e elegivel ou nao responde.\", \"parameters\": { \"type\": \"object\", \"properties\": { \"telefone\": { \"type\": \"string\" }, \"motivo\": { \"type\": \"string\", \"enum\": [\"desistencia\", \"nao_elegivel\", \"sem_resposta\", \"outro\"] }, \"notas\": { \"type\": \"string\" } }, \"required\": [\"telefone\", \"motivo\"] } } },\n    { \"type\": \"function\", \"function\": { \"name\": \"buscar_info_vaga\", \"description\": \"Retorna os criterios da vaga activa para avaliar adequacao do candidato.\", \"parameters\": { \"type\": \"object\", \"properties\": { \"vaga_id\": { \"type\": \"string\", \"description\": \"ID da vaga. Usar activa para obter a vaga em curso.\" } }, \"required\": [\"vaga_id\"] } } }\n  ],\n  \"messages\": {{ JSON.stringify($json.messages) }}\n}",
+        "options": {
+          "timeout": 60000,
+          "retry": {
+            "enabled": true,
+            "maxTries": 2,
+            "waitBetweenTries": 5000
+          }
+        }
+      },
+      "id": "node-11-c3d4e5f6-0011-0000-0000-000000000011",
+      "name": "🤖 Agente IA GPT-4o",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 416],
+      "notes": "Chama OpenAI API (gpt-4o) via HTTP Request. Timeout 60s, retry 2x. Tools no formato {type:function}."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.choices[0].finish_reason }}",
+              "rightValue": "tool_calls",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-12-c3d4e5f6-0012-0000-0000-000000000012",
+      "name": "🔧 Agente Pediu Tool?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2880, 416],
+      "notes": "OpenAI usa finish_reason:'tool_calls'. TRUE = extrair tool. FALSE = Módulo 4."
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const choice = $json.choices[0];\nconst toolCall = choice.message.tool_calls[0];\n\nif (!toolCall) {\n  throw new Error('Nenhum tool_call encontrado na resposta OpenAI.');\n}\n\nreturn [{ json: {\n  ...$json,\n  assistant_message: choice.message,\n  tool_name: toolCall.function.name,\n  tool_input: JSON.parse(toolCall.function.arguments),\n  tool_call_id: toolCall.id\n}}];"
+      },
+      "id": "node-13-c3d4e5f6-0013-0000-0000-000000000013",
+      "name": "🔍 Extrair Tool Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 240],
+      "notes": "Extrai tool_call do formato OpenAI: choices[0].message.tool_calls[0]. Guarda assistant_message para o histórico."
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tool_name }}",
+                    "rightValue": "qualificar_candidato",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "QUALIFICAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tool_name }}",
+                    "rightValue": "encerrar_sessao",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ENCERRAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tool_name }}",
+                    "rightValue": "buscar_info_vaga",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "BUSCAR_VAGA"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-14-c3d4e5f6-0014-0000-0000-000000000014",
+      "name": "⚙️ Seleccionar Tool",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [3320, 240],
+      "notes": "Encaminha para o nó correcto consoante a tool pedida pelo agente."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.supabaseUrl }}/rest/v1/candidatos_qualificados",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ ...$json.tool_input, status: 'pendente_revisao' }) }}",
+        "options": {}
+      },
+      "id": "node-15a-c3d4e5f6-015a-0000-0000-00000000015a",
+      "name": "✅ Guardar Candidato Qualificado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3540, 80],
+      "notes": "Persiste candidato qualificado no Supabase. Status inicial: pendente_revisao."
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.supabaseUrl }}/rest/v1/triagem_sessoes?phone=eq.{{ $json.phone }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"status\": \"encerrada\",\n  \"motivo_encerramento\": \"{{ $json.tool_input.motivo }}\"\n}",
+        "options": {}
+      },
+      "id": "node-15b-c3d4e5f6-015b-0000-0000-00000000015b",
+      "name": "🔴 Encerrar Sessão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3540, 240],
+      "notes": "Marca sessão como encerrada no Supabase com o motivo fornecido pelo agente."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.supabaseUrl }}/rest/v1/triagem_vagas?status=eq.activa&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-15c-c3d4e5f6-015c-0000-0000-00000000015c",
+      "name": "📋 Buscar Dados da Vaga",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3540, 400],
+      "notes": "Retorna dados da vaga activa para o agente avaliar adequação do candidato."
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "let toolOutput;\nif ($json.candidato_qualificado) {\n  toolOutput = { success: true, message: 'Candidato guardado com sucesso.' };\n} else if ($json.status === 'encerrada' || $json.motivo_encerramento) {\n  toolOutput = { success: true, message: 'Sessao encerrada.' };\n} else {\n  const vaga = Array.isArray($json) ? $json[0] : $json;\n  toolOutput = vaga || { message: 'Nenhuma vaga activa encontrada.' };\n}\n\nconst assistantMsg = $json.assistant_message;\n\nconst toolResultMsg = {\n  role: 'tool',\n  tool_call_id: $json.tool_call_id,\n  content: JSON.stringify(toolOutput)\n};\n\nconst updatedMessages = [...($json.messages || []), assistantMsg, toolResultMsg];\nconst iteracao = ($json.iteracao || 0) + 1;\n\nif (iteracao >= 5) {\n  return [{ json: { ...$json, force_stop: true, messages: updatedMessages, iteracao } }];\n}\n\nreturn [{ json: { ...$json, force_stop: false, messages: updatedMessages, iteracao } }];"
+      },
+      "id": "node-16-c3d4e5f6-0016-0000-0000-000000000016",
+      "name": "🔁 Devolver Resultado ao Agente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3760, 240],
+      "notes": "Monta tool result no formato OpenAI: role:'tool' + tool_call_id. Limite de segurança: 5 iterações."
     }
   ],
   "connections": {
@@ -743,6 +1130,182 @@
             "node": "🔗 Unificar Conteúdo",
             "type": "main",
             "index": 4
+          }
+        ]
+      ]
+    },
+    "🔗 Unificar Conteúdo": {
+      "main": [
+        [
+          {
+            "node": "🗃️ Buscar Sessão Candidato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗃️ Buscar Sessão Candidato": {
+      "main": [
+        [
+          {
+            "node": "🔎 Sessão Nova ou Existente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔎 Sessão Nova ou Existente?": {
+      "main": [
+        [
+          {
+            "node": "📋 Sessão Consolidada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🆕 Criar Sessão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🆕 Criar Sessão": {
+      "main": [
+        [
+          {
+            "node": "📋 Sessão Consolidada",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "📋 Sessão Consolidada": {
+      "main": [
+        [
+          {
+            "node": "🧠 Preparar Contexto IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Preparar Contexto IA": {
+      "main": [
+        [
+          {
+            "node": "🤖 Agente IA GPT-4o",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Agente IA GPT-4o": {
+      "main": [
+        [
+          {
+            "node": "🔧 Agente Pediu Tool?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Agente Pediu Tool?": {
+      "main": [
+        [
+          {
+            "node": "🔍 Extrair Tool Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "🔍 Extrair Tool Call": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Seleccionar Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Seleccionar Tool": {
+      "main": [
+        [
+          {
+            "node": "✅ Guardar Candidato Qualificado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔴 Encerrar Sessão",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📋 Buscar Dados da Vaga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Guardar Candidato Qualificado": {
+      "main": [
+        [
+          {
+            "node": "🔁 Devolver Resultado ao Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔴 Encerrar Sessão": {
+      "main": [
+        [
+          {
+            "node": "🔁 Devolver Resultado ao Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Buscar Dados da Vaga": {
+      "main": [
+        [
+          {
+            "node": "🔁 Devolver Resultado ao Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Devolver Resultado ao Agente": {
+      "main": [
+        [
+          {
+            "node": "🤖 Agente IA GPT-4o",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
