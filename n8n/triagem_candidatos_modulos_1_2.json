@@ -1,8 +1,16 @@
 {
-  "name": "Triagem de Candidatos — Módulos 1, 2, 3, 4 & 5",
+  "name": "🧑‍💼 Triagem de Candidatos — WhatsApp AI",
   "active": false,
+  "description": "Triagem automatizada de candidatos via WhatsApp usando Evolution API e Claude. Suporta texto, imagens, documentos PDF/Word e mensagens de voz. Agente IA conduz entrevista estruturada, qualifica perfis e notifica a equipa de RH. Stack: Evolution API + Claude + Supabase.",
+  "tags": [
+    { "name": "triagem" },
+    { "name": "rh" },
+    { "name": "whatsapp" },
+    { "name": "ai" }
+  ],
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflow": ""
   },
   "pinData": {},
   "meta": {
@@ -12,7 +20,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 📥 MÓDULO 1 — RECEPÇÃO\n\nRecebe e filtra mensagens da Evolution API via webhook.\n\n**Fluxo:**\n1. Webhook autentica via header secret\n2. Responde 200 OK imediatamente (paralelo)\n3. Filtra: só `messages.upsert`, não enviadas por nós, não grupos\n4. Normaliza payload para estrutura uniforme\n\n**Credenciais:** nenhuma necessária neste módulo",
+        "content": "## 📥 MÓDULO 1 — RECEPÇÃO\n**Webhook Evolution API + filtros**\n\n→ Autentica via `x-api-key` header\n→ Responde 200 OK imediatamente (paralelo)\n→ Filtra: `messages.upsert`, não enviado por nós, não grupos\n→ Normaliza payload (phone, nome, tipo, timestamp)\n\n`Credenciais:` x-api-key (webhook auth)",
         "height": 430,
         "width": 760,
         "color": 2
@@ -25,7 +33,7 @@
     },
     {
       "parameters": {
-        "content": "## 🎯 MÓDULO 2 — PROCESSAMENTO MULTIMODAL\n\nDetecta o tipo de conteúdo e processa cada formato:\n\n- **TEXTO** → extracção directa da mensagem\n- **ÁUDIO** → Evolution API Base64 → Whisper → transcrição PT\n- **IMAGEM** → Evolution API Base64 → GPT-4o-mini → texto/OCR\n- **DOCUMENTO** → Evolution API Base64 → ExtractFromFile → texto\n- **DESCONHECIDO** → mensagem de tipo não suportado\n\nTodos os ramos convergem no nó **Unificar Conteúdo** com campos normalizados:\n`extracted_content`, `content_type`, `phone`, `candidate_name`, `timestamp`\n\n**Credenciais:** `evolutionApiKey`, `openAiApi`",
+        "content": "## 🎯 MÓDULO 2 — MULTIMODAL\n**Texto, Áudio, Imagem, Documento**\n\n→ **TEXTO** — extracção directa\n→ **ÁUDIO** — Evolution Base64 → Whisper (PT)\n→ **IMAGEM** — Evolution Base64 → GPT-4o-mini OCR\n→ **DOCUMENTO** — Evolution Base64 → ExtractFromFile\n→ **DESCONHECIDO** — mensagem de fallback\n\nConverge em `🔗 Unificar Conteúdo` com:\n`extracted_content`, `content_type`, `phone`, `candidate_name`\n\n`Credenciais:` evolutionApiKey, openAiApi",
         "height": 830,
         "width": 1420,
         "color": 3
@@ -38,7 +46,7 @@
     },
     {
       "parameters": {
-        "content": "## 🧠 MÓDULO 3 — GESTÃO DE SESSÃO E AGENTE IA\n\nGere o estado da conversa no Supabase e corre o ciclo de raciocínio do agente GPT-4o com tool use.\n\n**Fluxo:**\n1. Busca sessão existente (ou cria nova)\n2. Consolida histórico de conversa\n3. Prepara contexto para o agente IA\n4. Chama GPT-4o com tools: `qualificar_candidato`, `encerrar_sessao`, `buscar_info_vaga`\n5. Se tool use → executa tool → devolve resultado ao agente (loop até 5 iterações)\n6. Se resposta final → avança para Módulo 4\n\n**Credenciais:** `openAiApiKey`, `supabaseAnonKey`\n\n**⚠️ Ramo FALSE do nó 12 → Módulo 4 (envio de resposta)**",
+        "content": "## 🧠 MÓDULO 3 — AGENTE IA\n**Claude + Tools + Sessão Supabase**\n\n→ Busca / cria sessão no Supabase\n→ Consolida histórico de conversa\n→ Prepara contexto + system prompt\n→ Chama GPT-4o com 3 tools:\n   • `qualificar_candidato` — submete perfil completo\n   • `encerrar_sessao` — encerra sem qualificação\n   • `buscar_info_vaga` — consulta critérios da vaga\n→ Loop tool use (máx. 5 iterações)\n→ Resposta final → Módulo 4\n\n`Credenciais:` openAiApiKey, supabaseAnonKey",
         "height": 830,
         "width": 2460,
         "color": 5
@@ -907,7 +915,7 @@
     },
     {
       "parameters": {
-        "content": "## 📤 MÓDULO 4 — RESPOSTA E NOTIFICAÇÕES\n\nEnvia a resposta do agente ao candidato via WhatsApp e actualiza o estado da sessão.\n\n**Fluxo:**\n1. Extrai texto da resposta do agente\n2. Envia mensagem ao candidato (delay 1200ms)\n3. Actualiza sessão no Supabase\n4. Se candidato qualificado → notifica equipa RH\n\n**Ligações de entrada:**\n- Nó 12 FALSE (agente respondeu sem tool)\n- Nó IF-FS TRUE (limite de 5 iterações atingido)\n\n**Credenciais:** `evolutionApiKey`, `supabaseAnonKey`, `rhPhone`",
+        "content": "## 📤 MÓDULO 4 — RESPOSTA\n**WhatsApp + Notificação RH**\n\nEntrada: IF Tool? FALSE  |  🛑 Força Parar TRUE\n\n→ Extrai texto da resposta do agente\n→ Envia mensagem ao candidato (delay 1200ms)\n→ Actualiza sessão Supabase (histórico + timestamp)\n→ Se qualificado → alerta equipa RH via WhatsApp\n\n`Credenciais:` evolutionApiKey, supabaseAnonKey\n`Env vars:` rhPhone",
         "height": 620,
         "width": 1400,
         "color": 4
@@ -920,7 +928,7 @@
     },
     {
       "parameters": {
-        "content": "## 🚨 MÓDULO 5 — TRATAMENTO DE ERROS\n\nCaptura erros globais do workflow e notifica o administrador.\n\n**Fluxo:**\n1. Error Trigger captura qualquer falha no workflow\n2. Formata os detalhes do erro\n3. Em paralelo: notifica admin via WhatsApp + regista erro no Supabase\n\n**Credenciais:** `evolutionApiKey`, `supabaseUrl`, `supabaseAnonKey`, `adminPhone`",
+        "content": "## 🚨 MÓDULO 5 — ERROS\n**Captura global + Log + Alerta**\n\n→ Error Trigger global (qualquer falha no workflow)\n→ Formata: nó falhado, mensagem, stack, phone, timestamp\n→ Fan-out paralelo:\n   • Alerta admin via WhatsApp\n   • Regista em `triagem_erros_log` (Supabase)\n\n`Credenciais:` evolutionApiKey, supabaseAnonKey\n`Env vars:` adminPhone, supabaseUrl",
         "height": 450,
         "width": 1100,
         "color": 6
