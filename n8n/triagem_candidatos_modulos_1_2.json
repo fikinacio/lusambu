@@ -538,7 +538,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+              "value": "Bearer ={{ $credentials.supabaseAnonKey }}"
             },
             {
               "name": "Content-Type",
@@ -597,7 +597,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+              "value": "Bearer ={{ $credentials.supabaseAnonKey }}"
             },
             {
               "name": "Content-Type",
@@ -818,7 +818,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+              "value": "Bearer ={{ $credentials.supabaseAnonKey }}"
             },
             {
               "name": "Content-Type",
@@ -855,7 +855,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+              "value": "Bearer ={{ $credentials.supabaseAnonKey }}"
             },
             {
               "name": "Content-Type",
@@ -888,7 +888,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+              "value": "Bearer ={{ $credentials.supabaseAnonKey }}"
             }
           ]
         },
@@ -1027,7 +1027,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+              "value": "Bearer ={{ $credentials.supabaseAnonKey }}"
             },
             {
               "name": "Content-Type",
@@ -1203,7 +1203,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+              "value": "Bearer ={{ $credentials.supabaseAnonKey }}"
             },
             {
               "name": "Content-Type",
