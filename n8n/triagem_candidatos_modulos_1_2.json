@@ -1,5 +1,5 @@
 {
-  "name": "Triagem de Candidatos — Módulos 1, 2 & 3",
+  "name": "Triagem de Candidatos — Módulos 1, 2, 3, 4 & 5",
   "active": false,
   "settings": {
     "executionOrder": "v1"
@@ -904,6 +904,316 @@
       "typeVersion": 2,
       "position": [3760, 240],
       "notes": "Monta tool result no formato OpenAI: role:'tool' + tool_call_id. Limite de segurança: 5 iterações."
+    },
+    {
+      "parameters": {
+        "content": "## 📤 MÓDULO 4 — RESPOSTA E NOTIFICAÇÕES\n\nEnvia a resposta do agente ao candidato via WhatsApp e actualiza o estado da sessão.\n\n**Fluxo:**\n1. Extrai texto da resposta do agente\n2. Envia mensagem ao candidato (delay 1200ms)\n3. Actualiza sessão no Supabase\n4. Se candidato qualificado → notifica equipa RH\n\n**Ligações de entrada:**\n- Nó 12 FALSE (agente respondeu sem tool)\n- Nó IF-FS TRUE (limite de 5 iterações atingido)\n\n**Credenciais:** `evolutionApiKey`, `supabaseAnonKey`, `rhPhone`",
+        "height": 620,
+        "width": 1400,
+        "color": 4
+      },
+      "id": "m4-sticky-0000-0000-0000-000000000001",
+      "name": "Sticky Note - Módulo 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [4020, -32]
+    },
+    {
+      "parameters": {
+        "content": "## 🚨 MÓDULO 5 — TRATAMENTO DE ERROS\n\nCaptura erros globais do workflow e notifica o administrador.\n\n**Fluxo:**\n1. Error Trigger captura qualquer falha no workflow\n2. Formata os detalhes do erro\n3. Em paralelo: notifica admin via WhatsApp + regista erro no Supabase\n\n**Credenciais:** `evolutionApiKey`, `supabaseUrl`, `supabaseAnonKey`, `adminPhone`",
+        "height": 450,
+        "width": 1100,
+        "color": 6
+      },
+      "id": "m5-sticky-0000-0000-0000-000000000002",
+      "name": "Sticky Note - Módulo 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [4020, 750]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.force_stop }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "rightType": "boolean"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-fs-c3d4e5f6-00fs-0000-0000-0000000000fs",
+      "name": "🛑 Força Parar Loop?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3980, 240],
+      "notes": "TRUE = limite de 5 iterações atingido → avança para M4. FALSE = continua o loop no GPT-4o."
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const textBlock = ($json.content || []).find(b => b.type === 'text');\nconst agentResponse = textBlock ? textBlock.text :\n  'Ocorreu um erro. Por favor tenta novamente.';\nreturn [{ json: { ...$json, agent_response: agentResponse } }];"
+      },
+      "id": "node-17-c3d4e5f6-0017-0000-0000-000000000017",
+      "name": "💬 Extrair Resposta de Texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4220, 416],
+      "notes": "Extrai bloco type:'text' do content. Fallback para mensagem de erro genérica."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.biscaplus.com/message/sendText/bmst",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"number\": \"{{ $json.phone }}\",\n  \"text\": \"{{ $json.agent_response }}\",\n  \"delay\": 1200\n}",
+        "options": {}
+      },
+      "id": "node-18-c3d4e5f6-0018-0000-0000-000000000018",
+      "name": "📤 Enviar Mensagem WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4440, 416],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "TG9LZC2NpnedbEyj",
+          "name": "x-api-key"
+        }
+      },
+      "notes": "Envia resposta ao candidato com delay de 1200ms para simular digitação humana."
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.supabaseUrl }}/rest/v1/triagem_sessoes?phone=eq.{{ $json.phone }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"historico_conversa\": {{ JSON.stringify($json.messages || []) }},\n  \"ultima_interacao\": \"{{ $now.toISO() }}\",\n  \"etapa_actual\": \"{{ $json.etapa_actual || 'EM_CURSO' }}\"\n}",
+        "options": {}
+      },
+      "id": "node-19-c3d4e5f6-0019-0000-0000-000000000019",
+      "name": "💾 Actualizar Sessão",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4660, 416],
+      "notes": "Persiste histórico actualizado e timestamp de última interacção no Supabase."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.candidato_qualificado }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "rightType": "boolean"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-20-c3d4e5f6-0020-0000-0000-000000000020",
+      "name": "🏆 Foi Qualificado Nesta Execução?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [4880, 416],
+      "notes": "TRUE = qualificar_candidato foi executado nesta sessão → notifica RH. FALSE = termina."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.biscaplus.com/message/sendText/bmst",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"number\": \"{{ $env.rhPhone }}\",\n  \"text\": \"✅ *Novo Candidato Qualificado*\\n\\n👤 Nome: {{ $json.tool_input.nome }}\\n📞 Telefone: {{ $json.phone }}\\n🏢 Experiência: {{ $json.tool_input.experiencia_anos }} anos — {{ $json.tool_input.area_experiencia }}\\n📅 Disponibilidade: {{ $json.tool_input.disponibilidade }}\\n💰 Expectativa: {{ $json.tool_input.expectativa_salarial_aoa }} AOA/mês\\n🎓 Escolaridade: {{ $json.tool_input.escolaridade }}\\n📍 Localização: {{ $json.tool_input.localizacao }}\\n⭐ Score: {{ $json.tool_input.score_estimado }}/100\\n\\n_Acede ao painel para ver o perfil completo._\",\n  \"delay\": 500\n}",
+        "options": {}
+      },
+      "id": "node-21-c3d4e5f6-0021-0000-0000-000000000021",
+      "name": "🔔 Alertar Equipa RH",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [5100, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "TG9LZC2NpnedbEyj",
+          "name": "x-api-key"
+        }
+      },
+      "notes": "Notifica o número de RH configurado em $env.rhPhone com o perfil completo do candidato."
+    },
+    {
+      "parameters": {},
+      "id": "node-22-c3d4e5f6-0022-0000-0000-000000000022",
+      "name": "🚨 Capturar Erros",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [4220, 900],
+      "notes": "Error Trigger global. Activado automaticamente para todo o workflow quando há falha num nó."
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "failed_node",
+              "stringValue": "={{ $json.execution.lastNodeExecuted }}"
+            },
+            {
+              "name": "error_message",
+              "stringValue": "={{ $json.error.message }}"
+            },
+            {
+              "name": "error_stack",
+              "stringValue": "={{ $json.error.stack }}"
+            },
+            {
+              "name": "candidato_phone",
+              "stringValue": "={{ $json.phone || 'desconhecido' }}"
+            },
+            {
+              "name": "timestamp",
+              "stringValue": "={{ $now.toISO() }}"
+            },
+            {
+              "name": "raw_payload",
+              "stringValue": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-23-c3d4e5f6-0023-0000-0000-000000000023",
+      "name": "📝 Formatar Detalhes do Erro",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [4440, 900]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution.biscaplus.com/message/sendText/bmst",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"number\": \"{{ $env.adminPhone }}\",\n  \"text\": \"🚨 *Erro no Workflow de Triagem*\\n\\nNó: {{ $json.failed_node }}\\nErro: {{ $json.error_message }}\\nCandidato: {{ $json.candidato_phone }}\\nHora: {{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "node-24-c3d4e5f6-0024-0000-0000-000000000024",
+      "name": "🆘 Alertar Administrador",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4660, 800],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "TG9LZC2NpnedbEyj",
+          "name": "x-api-key"
+        }
+      },
+      "notes": "Envia alerta ao administrador via WhatsApp. Número em $env.adminPhone."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.supabaseUrl }}/rest/v1/triagem_erros_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.supabaseAnonKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"workflow_node\": \"{{ $json.failed_node }}\",\n  \"error_message\": \"{{ $json.error_message }}\",\n  \"candidato_phone\": \"{{ $json.candidato_phone }}\",\n  \"raw_payload\": {{ $json.raw_payload }},\n  \"created_at\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "node-25-c3d4e5f6-0025-0000-0000-000000000025",
+      "name": "📊 Log de Erro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4660, 1000],
+      "notes": "Regista o erro na tabela triagem_erros_log no Supabase para auditoria."
     }
   ],
   "connections": {
@@ -1227,7 +1537,13 @@
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "💬 Extrair Resposta de Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "🔍 Extrair Tool Call": {
@@ -1303,7 +1619,97 @@
       "main": [
         [
           {
+            "node": "🛑 Força Parar Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🛑 Força Parar Loop?": {
+      "main": [
+        [
+          {
+            "node": "💬 Extrair Resposta de Texto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "🤖 Agente IA GPT-4o",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Extrair Resposta de Texto": {
+      "main": [
+        [
+          {
+            "node": "📤 Enviar Mensagem WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Enviar Mensagem WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "💾 Actualizar Sessão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Actualizar Sessão": {
+      "main": [
+        [
+          {
+            "node": "🏆 Foi Qualificado Nesta Execução?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏆 Foi Qualificado Nesta Execução?": {
+      "main": [
+        [
+          {
+            "node": "🔔 Alertar Equipa RH",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "🚨 Capturar Erros": {
+      "main": [
+        [
+          {
+            "node": "📝 Formatar Detalhes do Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Formatar Detalhes do Erro": {
+      "main": [
+        [
+          {
+            "node": "🆘 Alertar Administrador",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📊 Log de Erro",
             "type": "main",
             "index": 0
           }
