@@ -107,11 +107,8 @@ async def load_outreach_context(state: LusambuState) -> LusambuState:
 
     1. Busca histórico completo da tabela 'mensagens' (entrada + saída).
     2. Busca última mensagem outbound (prospecção) — determina se é outbound/inbound.
-    Guard: só executa no 1º turno da conversa.
+    Executa em cada turno para garantir histórico actualizado.
     """
-    if state.get("outreach_source"):  # já carregado num turno anterior
-        return state
-
     number = state["whatsapp_number"]
     outreach_msg, historico = await asyncio.gather(
         get_outreach_message(number),
@@ -272,9 +269,10 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     if next_stage == "escalate" and turn_count >= MAX_TURNS:
         escalation_reason = f"Conversa extensa ({turn_count} turnos) — revisão humana"
 
-    await send_typing_indicator(state["whatsapp_number"])
-    await _human_delay()
-    await send_whatsapp_message(state["whatsapp_number"], response.content)
+    if next_stage != "escalate":
+        await send_typing_indicator(state["whatsapp_number"])
+        await _human_delay()
+        await send_whatsapp_message(state["whatsapp_number"], response.content)
 
     await upsert_lead({
         **updated_lead_info,
