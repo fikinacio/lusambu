@@ -80,11 +80,15 @@ async def get_outreach_message(number: str) -> Optional[str]:
     """
     try:
         db = get_supabase()
-        # 1. Encontrar empresa pelo número de WhatsApp
+        # 1. Encontrar empresa pelo número de WhatsApp (tolerando variantes de formato)
+        variants = _whatsapp_variants(number)
+        if not variants:
+            return None
+        conds = [f"whatsapp.eq.{v}" for v in variants]
         empresa = (
             db.table("empresas")
             .select("id")
-            .eq("whatsapp", number)
+            .or_(",".join(conds))
             .limit(1)
             .execute()
         )
@@ -119,10 +123,14 @@ async def get_mensagens_history(number: str, limit: int = 20) -> list[dict]:
     """
     try:
         db = get_supabase()
+        variants = _whatsapp_variants(number)
+        if not variants:
+            return []
+        conds = [f"whatsapp.eq.{v}" for v in variants]
         empresa = (
             db.table("empresas")
             .select("id")
-            .eq("whatsapp", number)
+            .or_(",".join(conds))
             .limit(1)
             .execute()
         )

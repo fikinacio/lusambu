@@ -249,9 +249,14 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
             rag_context = await consultar_conhecimento(last_human) or ""
 
     # ---- Caminho normal: gerar resposta com LLM ----
-    outreach_ctx = Template(OUTREACH_CONTEXT_TEMPLATE).render(
-        outreach_message=state.get("outreach_message")
-    )
+    # Só renderiza o ramo inbound da OUTREACH_CONTEXT_TEMPLATE se não há prospect.
+    # Se prospect existe (outbound), o PROSPECT_CONTEXT_TEMPLATE já instrui "não saudar";
+    # renderizar o ramo inbound em cima criaria instruções contraditórias ao LLM.
+    outreach_msg = state.get("outreach_message")
+    if outreach_msg or not state.get("prospect"):
+        outreach_ctx = Template(OUTREACH_CONTEXT_TEMPLATE).render(outreach_message=outreach_msg)
+    else:
+        outreach_ctx = ""
     # Contexto do prospect (tabela prospects): a Bisca+ já conhece sector/dor/decisor
     prospect = state.get("prospect")
     prospect_ctx = ""
