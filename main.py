@@ -161,7 +161,7 @@ async def _handle_project_event_response(event: dict, fidel_message: str) -> Non
             f"Olá {nome}!\n\n"
             "O projecto foi concluído com sucesso. 🎉\n\n"
             "Foi um prazer trabalhar convosco. Estamos disponíveis para qualquer suporte.\n\n"
-            "Fidel Kussunga | Bisca+"
+            "Fidel Kussunga | BMST"
         )
         await send_whatsapp_message(whatsapp, msg)
         project_id = event.get("project_id", "")
@@ -378,7 +378,7 @@ async def lifespan(app: FastAPI):
     logger.info("Lusambu encerrado.")
 
 
-app = FastAPI(title="Lusambu — Agente de Vendas Bisca+", lifespan=lifespan)
+app = FastAPI(title="Lusambu — Agente de Vendas BMST", lifespan=lifespan)
 
 
 def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:

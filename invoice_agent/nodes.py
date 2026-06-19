@@ -72,7 +72,7 @@ async def generate_preview_node(state: InvoiceState) -> InvoiceState:
     """Gera pré-visualização da factura via LLM."""
     cfg = state.get("company_config", {})
     prompt = INVOICE_SYSTEM_PROMPT.format(
-        company_name=cfg.get("company_name", "Bisca+"),
+        company_name=cfg.get("company_name", "BMST"),
         nif=cfg.get("nif", ""),
         address=cfg.get("address", ""),
         empresa=state.get("empresa", ""),
@@ -123,7 +123,7 @@ async def send_to_fidel_node(state: InvoiceState) -> InvoiceState:
     await send_whatsapp_message(FIDEL_NUMBER, header + invoice_preview)
 
     iteration = state.get("iteration", 0)
-    footer = f"Iteração {iteration + 1}" if iteration > 0 else "Fidel Kussunga | Bisca+"
+    footer = f"Iteração {iteration + 1}" if iteration > 0 else "Fidel Kussunga | BMST"
     await send_button_message(
         number=FIDEL_NUMBER,
         body_text="Reviste a factura. Qual é a tua decisão?",

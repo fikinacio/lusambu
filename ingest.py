@@ -1,5 +1,5 @@
 """
-ingest.py — Ingere o conhecimento Bisca+ na tabela `documents` do Supabase.
+ingest.py — Ingere o conhecimento BMST na tabela `documents` do Supabase.
 
 Pré-requisitos:
   1. Executar rag_migration.sql no Supabase SQL Editor
@@ -253,7 +253,7 @@ def main(reset: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ingere conhecimento Bisca+ no Supabase")
+    parser = argparse.ArgumentParser(description="Ingere conhecimento BMST no Supabase")
     parser.add_argument("--reset", action="store_true", help="Apaga documentos anteriores antes de inserir")
     args = parser.parse_args()
     main(reset=args.reset)

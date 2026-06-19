@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Stack:** Python 3.12 · LangGraph · Claude Sonnet · FastAPI · Supabase · Evolution API · Fly.io  
 **Language:** Portuguese (European) with Angolan warmth  
-**Purpose:** Autonomous WhatsApp sales agent for Bisca+, an Angolan AI automation company
+**Purpose:** Autonomous WhatsApp sales agent for BMST, an Angolan AI automation company
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## 1. Project Overview
 
-Lusambu is a fully autonomous WhatsApp sales agent built for **Bisca+ Sistemas e Tecnologias**, an Angolan company that sells AI automation solutions to SMEs.
+Lusambu is a fully autonomous WhatsApp sales agent built for **BMST Sistemas e Tecnologias**, an Angolan company that sells AI automation solutions to SMEs.
 
 The agent handles the entire sales cycle end-to-end without human intervention:
 
@@ -86,7 +86,7 @@ The agent is persona-locked: it presents itself as *Lusambu*, a human sales cons
 
 ### Request Flow
 
-1. A WhatsApp user sends a message to the Bisca+ number.
+1. A WhatsApp user sends a message to the BMST number.
 2. Evolution API forwards it to `POST /webhook/lusambu` as a JSON payload.
 3. FastAPI parses the payload and fires `asyncio.create_task(_process_message(...))`, returning `{"status":"processing"}` immediately (non-blocking, Evolution sees 200 OK).
 4. `_process_message` invokes the LangGraph graph, which persists state per `thread_id = whatsapp_number` in SQLite.
@@ -349,7 +349,7 @@ Managed entirely by LangGraph's `AsyncSqliteSaver`. Each WhatsApp number is a `t
 
 ### Purpose
 
-Provides Lusambu with verified, specific knowledge about Bisca+ services and client case studies during pitch and objection stages, without hallucination.
+Provides Lusambu with verified, specific knowledge about BMST services and client case studies during pitch and objection stages, without hallucination.
 
 ### Content (16 chunks)
 
@@ -650,4 +650,4 @@ The conversation is capped at 12 turns (`MAX_TURNS = 12`). Beyond this, the lead
 ---
 
 *Documentation last updated: May 2026*  
-*Maintained by Bisca+ Sistemas e Tecnologias*
+*Maintained by BMST Sistemas e Tecnologias*

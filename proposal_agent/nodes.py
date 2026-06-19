@@ -72,10 +72,10 @@ async def generate_proposal_node(state: ProposalState) -> ProposalState:
     """Gera texto da proposta via LLM."""
     cfg = state.get("company_config", {})
     prompt = PROPOSAL_SYSTEM_PROMPT.format(
-        company_name=cfg.get("company_name", "Bisca+"),
+        company_name=cfg.get("company_name", "BMST"),
         nif=cfg.get("nif", ""),
         address=cfg.get("address", ""),
-        brand_name=cfg.get("brand_name", "Bisca+"),
+        brand_name=cfg.get("brand_name", "BMST"),
         fidel_name=cfg.get("fidel_name", "Fidel Kussunga"),
         empresa=state.get("empresa", ""),
         sector=state.get("sector", ""),
@@ -136,7 +136,7 @@ async def send_to_fidel_node(state: ProposalState) -> ProposalState:
 
     # Enviar botões de decisão
     iteration = state.get("iteration", 0)
-    footer = f"Iteração {iteration + 1}" if iteration > 0 else "Fidel Kussunga | Bisca+"
+    footer = f"Iteração {iteration + 1}" if iteration > 0 else "Fidel Kussunga | BMST"
     await send_button_message(
         number=FIDEL_NUMBER,
         body_text="Revisaste a proposta. Qual é a tua decisão?",

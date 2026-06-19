@@ -17,7 +17,7 @@ def _base_state() -> ProposalState:
             "company_name": "BISCA MAIS",
             "nif": "003378815UE037",
             "address": "Rua Francisco António",
-            "brand_name": "Bisca+",
+            "brand_name": "BMST",
             "fidel_name": "Fidel Kussunga",
             "logo_url": "",
         },
@@ -36,7 +36,7 @@ async def test_load_context_node_populates_fields():
         "valor_negociado": "250k",
     }
     cfg = {"company_name": "BISCA MAIS", "nif": "003", "address": "Rua X",
-           "brand_name": "Bisca+", "fidel_name": "Fidel", "logo_url": ""}
+           "brand_name": "BMST", "fidel_name": "Fidel", "logo_url": ""}
     with patch("proposal_agent.nodes.get_lead_for_proposal", AsyncMock(return_value=lead)), \
          patch("proposal_agent.nodes.get_company_config", AsyncMock(return_value=cfg)):
         result = await pn.load_context_node({"whatsapp": "244923000000"})

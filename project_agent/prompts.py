@@ -35,7 +35,7 @@ com as datas de cada entrega.
 
 Qualquer dúvida estou disponível por aqui.
 
-Fidel Kussunga | Bisca+\
+Fidel Kussunga | BMST\
 """
 
 APPROVAL_BUTTONS_2 = [

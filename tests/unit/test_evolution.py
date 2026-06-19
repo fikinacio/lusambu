@@ -23,7 +23,7 @@ async def test_send_button_message_success():
             buttons=[
                 {"buttonId": "aprovar", "buttonText": {"displayText": "✅ Aprovar"}, "type": 1},
             ],
-            footer="Fidel Kussunga | Bisca+",
+            footer="Fidel Kussunga | BMST",
         )
     assert result is True
 

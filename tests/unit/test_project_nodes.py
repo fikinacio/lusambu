@@ -14,7 +14,7 @@ def _base_state() -> dict:
         "contact_name": "Joao",
         "email": "acme@example.com",
         "canal_preferido": "whatsapp",
-        "company_config": {"company_name": "Bisca+"},
+        "company_config": {"company_name": "BMST"},
         "milestones": [],
         "milestones_preview": "",
         "fidel_decision": "",
@@ -79,13 +79,13 @@ async def test_load_context_node_populates_fields():
         "empresa": "Acme", "sector": "Chatbots", "email": "a@b.com",
         "valor": 1000.0, "contact_name": "Joao",
     }
-    cfg = {"company_name": "Bisca+"}
+    cfg = {"company_name": "BMST"}
     with patch("project_agent.nodes.get_deal_for_project", AsyncMock(return_value=deal)), \
          patch("project_agent.nodes.get_company_config", AsyncMock(return_value=cfg)):
         result = await pn.load_context_node({"whatsapp": "244923000000"})
     assert result["empresa"] == "Acme"
     assert result["email"] == "a@b.com"
-    assert result["company_config"]["company_name"] == "Bisca+"
+    assert result["company_config"]["company_name"] == "BMST"
 
 
 @pytest.mark.asyncio

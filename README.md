@@ -1,6 +1,6 @@
-# Lusambu — Agente de Vendas Bisca+
+# Lusambu — Agente de Vendas BMST
 
-Agente de vendas autónomo via WhatsApp para a [Bisca+](https://biscaplus.com), empresa angolana especialista em automação com IA para PMEs.
+Agente de vendas autónomo via WhatsApp para a [BMST](https://biscaplus.com), empresa angolana especialista em automação com IA para PMEs.
 
 A Lusambu qualifica leads, faz pitch adaptado ao sector, gere objecções e escala para o especialista humano quando necessário.
 

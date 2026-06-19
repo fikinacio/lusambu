@@ -17,7 +17,7 @@ def _base_state() -> InvoiceState:
             "company_name": "BISCA MAIS",
             "nif": "003378815UE037",
             "address": "Rua Francisco António",
-            "brand_name": "Bisca+",
+            "brand_name": "BMST",
         },
         "invoice_preview": "",
         "fidel_decision": "",

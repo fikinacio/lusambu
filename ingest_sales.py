@@ -1,5 +1,5 @@
 """
-ingest_sales.py — Ingere documentos de vendas Bisca+ na tabela `documents`.
+ingest_sales.py — Ingere documentos de vendas BMST na tabela `documents`.
 
 Complementa o ingest.py com portfólio detalhado com preços, casos com
 argumentos de venda, e respostas validadas a objecções.
@@ -60,7 +60,7 @@ SALES_CHUNKS: list[dict] = [
 
     {
         "conteudo": (
-            "A Bisca+ (marca da BMST — Bisca Mais Sistemas e Tecnologias) é uma empresa angolana "
+            "A BMST (marca da BMST — Bisca Mais Sistemas e Tecnologias) é uma empresa angolana "
             "de automação e inteligência artificial sediada em Luanda. "
             "Especializada em sistemas de agentes autónomos que executam tarefas completas de negócio "
             "sem intervenção humana: atendimento, prospecção, vendas, conteúdo, análise de documentos "
@@ -69,7 +69,7 @@ SALES_CHUNKS: list[dict] = [
             "Stack técnica: LangGraph, FastAPI, Supabase, Redis, Evolution API (WhatsApp). "
             "Fundador: Fidel Kussunga, Engenheiro de Sistemas pela Universidade do Minho."
         ),
-        "metadata": {"tipo": "institucional", "titulo": "Quem é a Bisca+", "source": SOURCE_TAG},
+        "metadata": {"tipo": "institucional", "titulo": "Quem é a BMST", "source": SOURCE_TAG},
     },
 
     # ── PORTFÓLIO COM PREÇOS ───────────────────────────────────────────────
@@ -354,7 +354,7 @@ def main(reset: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ingere documentos de vendas Bisca+ no Supabase")
+    parser = argparse.ArgumentParser(description="Ingere documentos de vendas BMST no Supabase")
     parser.add_argument("--reset", action="store_true", help="Apaga documentos de vendas anteriores")
     args = parser.parse_args()
     main(reset=args.reset)

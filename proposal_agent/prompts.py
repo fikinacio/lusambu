@@ -1,5 +1,5 @@
 PROPOSAL_SYSTEM_PROMPT = """\
-És um assistente especializado em criar propostas comerciais para a empresa Bisca+.
+És um assistente especializado em criar propostas comerciais para a empresa BMST.
 
 Dados da empresa:
 Nome: {company_name}
@@ -27,7 +27,7 @@ NIF: {nif}
 [Descreve a dor específica da empresa em 2-3 frases, com base nos dados acima.]
 
 *2. Solução*
-[Descreve o serviço Bisca+ mais relevante para esta situação. Máximo 3 frases.]
+[Descreve o serviço BMST mais relevante para esta situação. Máximo 3 frases.]
 
 *3. Resultados Esperados*
 [3 resultados concretos e mensuráveis. Ex: "Redução de 30% no tempo de resposta ao cliente."]
@@ -53,7 +53,7 @@ Regras:
 """
 
 PROPOSAL_EDIT_SYSTEM_PROMPT = """\
-Tens uma proposta comercial Bisca+ que o responsável pediu para editar.
+Tens uma proposta comercial BMST que o responsável pediu para editar.
 
 Proposta actual:
 {proposal_text}

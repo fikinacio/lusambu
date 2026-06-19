@@ -257,7 +257,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
         outreach_ctx = Template(OUTREACH_CONTEXT_TEMPLATE).render(outreach_message=outreach_msg)
     else:
         outreach_ctx = ""
-    # Contexto do prospect (tabela prospects): a Bisca+ já conhece sector/dor/decisor
+    # Contexto do prospect (tabela prospects): a BMST já conhece sector/dor/decisor
     prospect = state.get("prospect")
     prospect_ctx = ""
     if prospect:

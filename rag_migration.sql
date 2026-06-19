@@ -1,4 +1,4 @@
--- RAG: tabela de conhecimento Bisca+
+-- RAG: tabela de conhecimento BMST
 -- Executar no Supabase SQL Editor ANTES de correr ingest.py
 -- Requer extensão pgvector activada no projecto Supabase.
 

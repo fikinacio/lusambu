@@ -70,11 +70,11 @@ async def create_invoice(client_id: str, valor_str: str, empresa: str) -> dict:
                 "client_id": client_id,
                 "line_items": [{
                     "product_key": "Serviço Digital",
-                    "notes": f"Serviço Bisca+ para {empresa} — {valor_str}",
+                    "notes": f"Serviço BMST para {empresa} — {valor_str}",
                     "cost": valor,
                     "quantity": 1,
                 }],
-                "public_notes": "Obrigado pela confiança na Bisca+.",
+                "public_notes": "Obrigado pela confiança na BMST.",
             }
             r = await client.post("/api/v1/invoices", json=payload, headers=_headers())
             r.raise_for_status()

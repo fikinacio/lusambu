@@ -163,7 +163,7 @@ async def generate_milestones_node(state: ProjectState) -> ProjectState:
 
     cfg = state.get("company_config", {})
     prompt = PROJECT_MILESTONES_PROMPT.format(
-        company_name=cfg.get("company_name", "Bisca+"),
+        company_name=cfg.get("company_name", "BMST"),
         empresa=state.get("empresa", ""),
         servico_tipo=servico_tipo,
         milestones_json=json.dumps(milestones, ensure_ascii=False),
@@ -220,7 +220,7 @@ async def send_to_fidel_node(state: ProjectState) -> ProjectState:
     await send_whatsapp_message(FIDEL_NUMBER, header + preview)
 
     iteration = state.get("iteration", 0)
-    footer = f"Iteração {iteration + 1}" if iteration > 0 else "Fidel Kussunga | Bisca+"
+    footer = f"Iteração {iteration + 1}" if iteration > 0 else "Fidel Kussunga | BMST"
     await send_button_message(
         number=FIDEL_NUMBER,
         body_text="Revê o plano de milestones. Qual é a tua decisão?",
