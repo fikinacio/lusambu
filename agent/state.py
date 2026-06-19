@@ -36,3 +36,5 @@ class LusambuState(TypedDict):
     outreach_message: Optional[str]  # texto da msg de prospecção enviada; None se inbound
     outreach_source: str             # "outbound" | "inbound" | "" (ainda não carregado)
     mensagens_context: str           # histórico CRM da tabela mensagens (carregado 1x)
+    prospect: Optional[dict]         # contexto do prospect (tabela prospects); None se não encontrado
+    historico: list                  # histórico estruturado de mensagens (entrada/saida) por empresa_id

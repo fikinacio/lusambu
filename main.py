@@ -430,6 +430,8 @@ def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuStat
         "sales_agent_active": False,
         "outreach_message": None,
         "outreach_source": "",
+        "prospect": None,
+        "historico": [],
     }
 
 

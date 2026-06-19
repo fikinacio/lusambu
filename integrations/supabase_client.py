@@ -144,6 +144,140 @@ async def get_mensagens_history(number: str, limit: int = 20) -> list[dict]:
         return []
 
 
+# ---------------------------------------------------------------------------
+# Contexto de prospecção: tabela `prospects` + histórico via `empresas`/`mensagens`
+# ---------------------------------------------------------------------------
+
+def _whatsapp_variants(number: str) -> list[str]:
+    """Gera variantes de um número de WhatsApp para tolerar formatos diferentes.
+
+    O webhook normaliza para dígitos sem '+' (ex: '244923943262'), mas o CRM
+    guarda frequentemente com '+' (ex: '+244923943262') ou sem prefixo de país.
+    """
+    n = (number or "").strip().replace(" ", "").replace("-", "").lstrip("+")
+    if not n:
+        return []
+    local = n[3:] if n.startswith("244") else n
+    candidates = {n, f"+{n}", local, f"+{local}", f"244{local}", f"+244{local}"}
+    return [v for v in candidates if v]
+
+
+_PROSPECT_FIELDS = (
+    "id, prospect_id, company_name, empresa_nome, sector, nicho, "
+    "pain_angle, pain_note, bmst_service, decisor_nome, decisor_cargo, "
+    "primary_channel, status, whatsapp, whatsapp_business"
+)
+
+
+async def get_prospect_context(whatsapp_number: str) -> Optional[dict]:
+    """Identifica o prospect pelo número de WhatsApp na tabela `prospects`.
+
+    Procura em `whatsapp` ou `whatsapp_business`, tolerando variações de formato.
+    Devolve os campos de contexto do prospect, ou None se não encontrado.
+    """
+    try:
+        variants = _whatsapp_variants(whatsapp_number)
+        if not variants:
+            return None
+        db = get_supabase()
+        conds = []
+        for v in variants:
+            conds.append(f"whatsapp.eq.{v}")
+            conds.append(f"whatsapp_business.eq.{v}")
+        result = (
+            db.table("prospects")
+            .select(_PROSPECT_FIELDS)
+            .or_(",".join(conds))
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao carregar prospect para {whatsapp_number}: {e}")
+        return None
+
+
+async def _resolve_empresa(whatsapp_number: str, prospect_id: Optional[str]) -> Optional[dict]:
+    """Resolve a empresa ({id, prospect_id}) para um número/prospect.
+
+    Tenta primeiro por `empresas.whatsapp` (tolerando formatos); se falhar e houver
+    `prospect_id`, liga via `empresas.prospect_id`. Devolve o registo ou None.
+    """
+    try:
+        db = get_supabase()
+        variants = _whatsapp_variants(whatsapp_number)
+        if variants:
+            conds = [f"whatsapp.eq.{v}" for v in variants]
+            result = (
+                db.table("empresas")
+                .select("id, prospect_id")
+                .or_(",".join(conds))
+                .limit(1)
+                .execute()
+            )
+            if result.data:
+                return result.data[0]
+        if prospect_id:
+            result = (
+                db.table("empresas")
+                .select("id, prospect_id")
+                .eq("prospect_id", prospect_id)
+                .limit(1)
+                .execute()
+            )
+            if result.data:
+                return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao resolver empresa para {whatsapp_number}: {e}")
+        return None
+
+
+async def get_prospect_by_id(prospect_id: str) -> Optional[dict]:
+    """Busca o contexto do prospect pelo `prospect_id` (ligação via `empresas`).
+
+    Usado quando o número está guardado em `empresas` mas não em `prospects`.
+    """
+    try:
+        db = get_supabase()
+        result = (
+            db.table("prospects")
+            .select(_PROSPECT_FIELDS)
+            .eq("prospect_id", prospect_id)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Erro ao carregar prospect por id {prospect_id}: {e}")
+        return None
+
+
+async def get_message_history(empresa_id: str) -> list[dict]:
+    """Histórico completo de mensagens de uma empresa, ordenado por timestamp ASC.
+
+    Devolve lista de {direcao, canal, conteudo, agente, timestamp} a partir da
+    tabela `mensagens` filtrando por `empresa_id`.
+    """
+    try:
+        db = get_supabase()
+        result = (
+            db.table("mensagens")
+            .select("direcao, canal, conteudo, agente, timestamp")
+            .eq("empresa_id", empresa_id)
+            .order("timestamp", desc=False)
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Erro ao carregar histórico de mensagens (empresa_id={empresa_id}): {e}")
+        return []
+
+
 async def increment_followup(whatsapp: str) -> None:
     """Regista o follow-up enviado e actualiza o timestamp."""
     try:

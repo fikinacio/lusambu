@@ -8,9 +8,15 @@ from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 
 from .state import LusambuState, LeadInfo
 from jinja2 import Template
-from .prompts import SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B, OUTREACH_CONTEXT_TEMPLATE
+from .prompts import (
+    SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B,
+    OUTREACH_CONTEXT_TEMPLATE, PROSPECT_CONTEXT_TEMPLATE,
+)
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
-from integrations.supabase_client import upsert_lead, get_outreach_message, get_mensagens_history
+from integrations.supabase_client import (
+    upsert_lead, get_outreach_message, get_mensagens_history,
+    get_prospect_context, get_prospect_by_id, _resolve_empresa, get_message_history,
+)
 from integrations.rag import consultar_conhecimento
 
 logger = logging.getLogger(__name__)
@@ -105,15 +111,32 @@ def _determine_stage(
 async def load_outreach_context(state: LusambuState) -> LusambuState:
     """Carrega contexto de prospecção e histórico CRM antes de qualquer resposta.
 
-    1. Busca histórico completo da tabela 'mensagens' (entrada + saída).
-    2. Busca última mensagem outbound (prospecção) — determina se é outbound/inbound.
-    Executa em cada turno para garantir histórico actualizado.
+    1. Identifica o prospect na tabela 'prospects' pelo número de WhatsApp.
+    2. Busca histórico estruturado de 'mensagens' (entrada + saída) por empresa_id.
+    3. Busca última mensagem outbound (prospecção) — determina se é outbound/inbound.
+    Executa em cada turno para garantir contexto actualizado.
     """
     number = state["whatsapp_number"]
-    outreach_msg, historico = await asyncio.gather(
+    outreach_msg, historico_legacy, prospect = await asyncio.gather(
         get_outreach_message(number),
         get_mensagens_history(number),
+        get_prospect_context(number),
     )
+
+    # Resolve a empresa (o número costuma estar em 'empresas.whatsapp' com '+').
+    empresa = await _resolve_empresa(number, prospect.get("prospect_id") if prospect else None)
+
+    # Fallback: número não está em 'prospects' mas a empresa liga a um prospect.
+    if not prospect and empresa and empresa.get("prospect_id"):
+        prospect = await get_prospect_by_id(empresa["prospect_id"])
+
+    # Histórico estruturado via empresa_id (mais fiável que o lookup por whatsapp
+    # directo, que falha quando o número está guardado com '+').
+    historico = []
+    if empresa and empresa.get("id"):
+        historico = await get_message_history(empresa["id"])
+    if not historico:
+        historico = historico_legacy
 
     # Formata histórico CRM como contexto legível pelo LLM
     mensagens_context = ""
@@ -126,9 +149,16 @@ async def load_outreach_context(state: LusambuState) -> LusambuState:
                 linhas.append(f"{papel}: {conteudo}")
         mensagens_context = "\n".join(linhas)
 
+    base = {
+        **state,
+        "prospect": prospect,
+        "historico": historico,
+        "mensagens_context": mensagens_context,
+    }
+
     if outreach_msg:
-        return {**state, "outreach_message": outreach_msg, "outreach_source": "outbound", "mensagens_context": mensagens_context}
-    return {**state, "outreach_message": None, "outreach_source": "inbound", "mensagens_context": mensagens_context}
+        return {**base, "outreach_message": outreach_msg, "outreach_source": "outbound"}
+    return {**base, "outreach_message": None, "outreach_source": "inbound"}
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +252,15 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     outreach_ctx = Template(OUTREACH_CONTEXT_TEMPLATE).render(
         outreach_message=state.get("outreach_message")
     )
-    system = outreach_ctx + "\n" + SYSTEM_PROMPT.format(
+    # Contexto do prospect (tabela prospects): a Bisca+ já conhece sector/dor/decisor
+    prospect = state.get("prospect")
+    prospect_ctx = ""
+    if prospect:
+        prospect_ctx = Template(PROSPECT_CONTEXT_TEMPLATE).render(
+            prospect=prospect,
+            decisor_nome=prospect.get("decisor_nome"),
+        )
+    system = prospect_ctx + "\n" + outreach_ctx + "\n" + SYSTEM_PROMPT.format(
         stage=current_stage,
         lead_info=json.dumps(extracted_after_user, ensure_ascii=False, default=str),
         objection_count=objection_count,
