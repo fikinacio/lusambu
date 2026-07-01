@@ -86,7 +86,7 @@ async def sales_agent_node(state: LusambuState) -> LusambuState:
     ])
 
     prompt = f"""CONTEXTO DA EMPRESA (RAG):
-{rag_context if rag_context else "(RAG indisponível — usa o teu conhecimento do portfólio)"}
+{rag_context if rag_context else "(Sem informação verificada na base de conhecimento para esta pergunta. NÃO inventes preços, prazos, integrações ou resultados. Se não conseguires responder com segurança, diz que vais confirmar com a equipa e avança para agendar uma chamada.)"}
 
 HISTÓRICO DA CONVERSA:
 {historico}

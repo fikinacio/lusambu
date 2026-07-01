@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, HTTPException
@@ -412,7 +413,66 @@ def _parse_evolution_webhook(data: dict) -> tuple[str, str] | tuple[None, None]:
         return None, None
 
 
-def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuState:
+def _extract_ad_context(data: dict) -> Optional[dict]:
+    """Extrai dados de anúncio Facebook/Instagram (Click-to-WhatsApp) do payload da Evolution API.
+
+    Quando um lead responde a um anúncio Meta pelo botão "Enviar mensagem", o WhatsApp
+    inclui contextInfo.externalAdReplyInfo na mensagem — é o único sinal automático e
+    fiável para distinguir um lead de redes sociais de um lead orgânico/directo.
+    Devolve None se a mensagem não veio de um anúncio.
+    """
+    try:
+        msg_data = data.get("data", {})
+        message_obj = msg_data.get("message", {})
+        context_info = (
+            message_obj.get("extendedTextMessage", {}).get("contextInfo")
+            or message_obj.get("contextInfo")
+            or msg_data.get("contextInfo")
+            or {}
+        )
+        ad_info = context_info.get("externalAdReplyInfo")
+        if not ad_info:
+            return None
+        return {
+            "title": ad_info.get("title") or "",
+            "body": ad_info.get("body") or "",
+            "source_url": ad_info.get("sourceUrl") or "",
+        }
+    except Exception as e:
+        logger.error(f"Erro ao extrair contexto de anúncio: {e}")
+        return None
+
+
+# Frases usadas no botão de WhatsApp do site da BMST (link wa.me com texto pré-preenchido).
+# Se o site mudar o texto do botão, actualizar esta lista para manter a detecção de origem.
+_SITE_INBOUND_MARKERS = (
+    "vim do site",
+    "vindo do site",
+    "através do site",
+    "site da bmst",
+    "site da bisca",
+    "biscamaisst.com",
+)
+
+
+def _detect_site_origin(text: str) -> bool:
+    normalized = (text or "").lower()
+    return any(marker in normalized for marker in _SITE_INBOUND_MARKERS)
+
+
+def _fresh_state(
+    number: str,
+    text: str,
+    message_offset: int = 0,
+    ad_context: Optional[dict] = None,
+) -> LusambuState:
+    if ad_context:
+        lead_origin = "facebook_ads"
+    elif _detect_site_origin(text):
+        lead_origin = "site"
+    else:
+        lead_origin = "unknown"
+
     return {
         "messages": [HumanMessage(content=text)],
         "whatsapp_number": number,
@@ -432,10 +492,12 @@ def _fresh_state(number: str, text: str, message_offset: int = 0) -> LusambuStat
         "outreach_source": "",
         "prospect": None,
         "historico": [],
+        "lead_origin": lead_origin,
+        "ad_context": ad_context,
     }
 
 
-async def _process_message(number: str, text: str):
+async def _process_message(number: str, text: str, ad_context: Optional[dict] = None):
     if FIDEL_NUMBER and number == FIDEL_NUMBER:
         await _route_fidel_message(text)
         return
@@ -449,11 +511,11 @@ async def _process_message(number: str, text: str):
         # Lead voltou após conversa terminada — reinicia com offset para ignorar histórico antigo
         offset = len(existing.values.get("messages", []))
         logger.info(f"Re-entry de {number} — offset={offset}")
-        input_state = _fresh_state(number, text, message_offset=offset)
+        input_state = _fresh_state(number, text, message_offset=offset, ad_context=ad_context)
     elif existing.values:
         input_state = {"messages": [HumanMessage(content=text)]}
     else:
-        input_state = _fresh_state(number, text)
+        input_state = _fresh_state(number, text, ad_context=ad_context)
 
     try:
         await graph.ainvoke(input_state, config=config)
@@ -475,7 +537,8 @@ async def webhook(request: Request):
 
     logger.info(f"Mensagem recebida de {number}: {text[:50]}...")
 
-    asyncio.create_task(_process_message(number, text))
+    ad_context = _extract_ad_context(data)
+    asyncio.create_task(_process_message(number, text, ad_context))
 
     return {"status": "processing"}
 

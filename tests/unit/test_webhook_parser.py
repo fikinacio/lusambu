@@ -3,7 +3,9 @@ Testes unitários de _parse_evolution_webhook — extrai (número, texto) da pay
 da Evolution API. Cobre os formatos de mensagem reais da API.
 """
 import pytest
-from main import _parse_evolution_webhook
+from main import (
+    _parse_evolution_webhook, _extract_ad_context, _detect_site_origin, _fresh_state,
+)
 
 
 def _payload(remote_jid: str, from_me: bool, text: str | None = None, extended: str | None = None) -> dict:
@@ -131,3 +133,84 @@ def test_payload_sem_numero_ignorado():
     number, text = _parse_evolution_webhook(data)
     assert number is None
     assert text is None
+
+
+# ---------------------------------------------------------------------------
+# _extract_ad_context — sinal de anúncio Facebook/Instagram (Click-to-WhatsApp)
+# ---------------------------------------------------------------------------
+
+def test_extrai_contexto_de_anuncio_click_to_whatsapp():
+    data = {
+        "data": {
+            "message": {
+                "extendedTextMessage": {
+                    "text": "Olá",
+                    "contextInfo": {
+                        "externalAdReplyInfo": {
+                            "title": "Automatiza o teu negócio",
+                            "body": "Poupa horas com automação",
+                            "sourceUrl": "https://fb.me/xyz",
+                        }
+                    },
+                }
+            }
+        }
+    }
+    ctx = _extract_ad_context(data)
+    assert ctx == {
+        "title": "Automatiza o teu negócio",
+        "body": "Poupa horas com automação",
+        "source_url": "https://fb.me/xyz",
+    }
+
+
+def test_sem_contexto_de_anuncio_devolve_none():
+    data = {"data": {"message": {"conversation": "Olá, vim do site"}}}
+    assert _extract_ad_context(data) is None
+
+
+def test_payload_malformado_nao_rebenta_extract_ad_context():
+    assert _extract_ad_context({}) is None
+    assert _extract_ad_context({"data": None}) is None
+
+
+# ---------------------------------------------------------------------------
+# _detect_site_origin — marcador de texto do botão wa.me do site
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text", [
+    "Olá, vim do site da BMST e quero saber mais",
+    "Vindo do site, gostaria de informação",
+    "Encontrei-vos através do site",
+    "Vi no site da bisca",
+])
+def test_detecta_origem_site(text):
+    assert _detect_site_origin(text) is True
+
+
+def test_nao_detecta_origem_site_em_mensagem_generica():
+    assert _detect_site_origin("Olá, vi o vosso anúncio no Facebook") is False
+    assert _detect_site_origin("") is False
+
+
+# ---------------------------------------------------------------------------
+# _fresh_state — lead_origin resolvido a partir do sinal disponível
+# ---------------------------------------------------------------------------
+
+def test_fresh_state_marca_origem_facebook_ads_quando_ha_ad_context():
+    ad_context = {"title": "Promo", "body": "Fala connosco", "source_url": "https://fb.me/1"}
+    state = _fresh_state("244923000000", "Olá", ad_context=ad_context)
+    assert state["lead_origin"] == "facebook_ads"
+    assert state["ad_context"] == ad_context
+
+
+def test_fresh_state_marca_origem_site_quando_texto_tem_marcador():
+    state = _fresh_state("244923000000", "Olá, vim do site da BMST")
+    assert state["lead_origin"] == "site"
+    assert state["ad_context"] is None
+
+
+def test_fresh_state_marca_origem_unknown_sem_sinal():
+    state = _fresh_state("244923000000", "Boa tarde, tudo bem?")
+    assert state["lead_origin"] == "unknown"
+    assert state["ad_context"] is None

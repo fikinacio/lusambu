@@ -157,8 +157,12 @@ async def load_outreach_context(state: LusambuState) -> LusambuState:
     }
 
     if outreach_msg:
-        return {**base, "outreach_message": outreach_msg, "outreach_source": "outbound"}
-    return {**base, "outreach_message": None, "outreach_source": "inbound"}
+        return {**base, "outreach_message": outreach_msg, "outreach_source": "outbound", "lead_origin": "outbound"}
+
+    # Não é outbound — mantém a origem detectada no primeiro contacto (site/facebook_ads/unknown),
+    # persistida no state pelo webhook (main._fresh_state) e reposta a cada turno pelo checkpointer.
+    origin = state.get("lead_origin") or "unknown"
+    return {**base, "outreach_message": None, "outreach_source": "inbound", "lead_origin": origin}
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +258,13 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     # renderizar o ramo inbound em cima criaria instruções contraditórias ao LLM.
     outreach_msg = state.get("outreach_message")
     if outreach_msg or not state.get("prospect"):
-        outreach_ctx = Template(OUTREACH_CONTEXT_TEMPLATE).render(outreach_message=outreach_msg)
+        ad_context = state.get("ad_context") or {}
+        outreach_ctx = Template(OUTREACH_CONTEXT_TEMPLATE).render(
+            outreach_message=outreach_msg,
+            lead_origin=state.get("lead_origin", "unknown"),
+            ad_title=ad_context.get("title"),
+            ad_body=ad_context.get("body"),
+        )
     else:
         outreach_ctx = ""
     # Contexto do prospect (tabela prospects): a BMST já conhece sector/dor/decisor

@@ -192,6 +192,8 @@ async def main() -> None:
                 "sales_agent_active": False,
                 "outreach_message": None,
                 "outreach_source": "",
+                "lead_origin": "unknown",
+                "ad_context": None,
             }
         elif existing.values:
             state_input = {"messages": [HumanMessage(content=user_input)]}
@@ -213,6 +215,8 @@ async def main() -> None:
                 "sales_agent_active": False,
                 "outreach_message": None,
                 "outreach_source": "",
+                "lead_origin": "unknown",
+                "ad_context": None,
             }
 
         try:

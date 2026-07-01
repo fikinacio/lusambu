@@ -38,3 +38,5 @@ class LusambuState(TypedDict):
     mensagens_context: str           # histórico CRM da tabela mensagens (carregado 1x)
     prospect: Optional[dict]         # contexto do prospect (tabela prospects); None se não encontrado
     historico: list                  # histórico estruturado de mensagens (entrada/saida) por empresa_id
+    lead_origin: str                 # "outbound" | "facebook_ads" | "site" | "unknown"
+    ad_context: Optional[dict]       # dados do anúncio Meta (title/body/source_url) quando lead_origin == "facebook_ads"
