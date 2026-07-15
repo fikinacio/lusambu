@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 llm_invoice = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=600, temperature=0.3)
 
-FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP", "")
+FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP_NUMBER", "")
 
 
 # ---------------------------------------------------------------------------

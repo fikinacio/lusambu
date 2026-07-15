@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 llm_proposal = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=800, temperature=0.3)
 
-FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP", "")
+FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP_NUMBER", "")
 
 
 # ---------------------------------------------------------------------------

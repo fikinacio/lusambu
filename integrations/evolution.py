@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 EVOLUTION_URL = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
 EVOLUTION_KEY = os.getenv("EVOLUTION_API_KEY", "")
 EVOLUTION_INSTANCE = os.getenv("EVOLUTION_INSTANCE", "")
-FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP", "")
+FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP_NUMBER", "")
 
 
 async def send_whatsapp_message(number: str, text: str) -> bool:
