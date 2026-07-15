@@ -91,7 +91,7 @@ fly secrets set `
   EVOLUTION_API_URL="https://evolution.biscaplus.com" `
   EVOLUTION_API_KEY="..." `
   EVOLUTION_INSTANCE="bmst" `
-  FIDEL_WHATSAPP_NUMBER="244950355637"
+  FIDEL_WHATSAPP_NUMBER="41795748225"
 ```
 
 > `CHECKPOINT_DB_PATH` já está definido no `fly.toml` como `/data/checkpoints.sqlite` — não precisas de o definir aqui.

@@ -10,7 +10,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
 os.environ.setdefault("EVOLUTION_API_URL", "https://test.evolution.com")
 os.environ.setdefault("EVOLUTION_API_KEY", "test-evolution-key")
 os.environ.setdefault("EVOLUTION_INSTANCE", "bmst-test")
-os.environ.setdefault("FIDEL_WHATSAPP_NUMBER", "244950355637")
+os.environ.setdefault("FIDEL_WHATSAPP_NUMBER", "41795748225")
 
 import pytest
 from langchain_core.messages import HumanMessage
