@@ -44,7 +44,7 @@ graph = None
 proposal_graph = None
 invoice_graph = None
 project_graph = None
-FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP", "")
+FIDEL_NUMBER = os.getenv("FIDEL_WHATSAPP_NUMBER", "")
 _llm_followup = ChatAnthropic(model="claude-haiku-3-5", max_tokens=120, temperature=0.7)
 
 _FOLLOWUP_MSGS = {
