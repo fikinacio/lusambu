@@ -96,8 +96,15 @@ Dor confirmada: {dor or "(não especificada — infere pelo histórico)"}
 
 Responde como Sales Agent. Uma mensagem, directa, orientada a fechar."""
 
-    calendly_link = (await get_company_context()).get("calendly_url") or ""
-    system_prompt = SALES_AGENT_SYSTEM_PROMPT.replace("{{CALENDLY_URL}}", calendly_link)
+    company_ctx = await get_company_context()
+    calendly_link = company_ctx.get("calendly_url") or ""
+    fidel = company_ctx.get("fidel_whatsapp_publico")
+    contacto_fidel = f", ou dá-lhe o contacto directo do Fidel Kussunga: {fidel}" if fidel else ""
+    system_prompt = (
+        SALES_AGENT_SYSTEM_PROMPT
+        .replace("{{CALENDLY_URL}}", calendly_link)
+        .replace("{{CONTACTO_FIDEL}}", contacto_fidel)
+    )
 
     response = await llm_sales.ainvoke([
         SystemMessage(content=system_prompt),

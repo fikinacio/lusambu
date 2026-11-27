@@ -9,7 +9,7 @@ from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 from .state import LusambuState, LeadInfo
 from jinja2 import Template
 from .prompts import (
-    render_system_prompt, CONVERSATION_STATE_TEMPLATE, EXTRACTION_PROMPT,
+    render_system_prompt, render_price_rule, CONVERSATION_STATE_TEMPLATE, EXTRACTION_PROMPT,
     OUTREACH_CONTEXT_TEMPLATE, PROSPECT_CONTEXT_TEMPLATE,
 )
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
@@ -281,6 +281,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
     system = (
         prospect_ctx + "\n" + outreach_ctx + "\n"
         + render_system_prompt(company_ctx)
+        + render_price_rule(company_ctx)
         + CONVERSATION_STATE_TEMPLATE.format(
             stage=current_stage,
             lead_info=json.dumps(extracted_after_user, ensure_ascii=False, default=str),

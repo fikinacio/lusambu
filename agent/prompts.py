@@ -285,6 +285,21 @@ def render_system_prompt(company_context: dict) -> str:
     return text
 
 
+def render_price_rule(company_context: dict) -> str:
+    """Regra de preços decidida a 2026-11-27. Complementa a secção PREÇOS do prompt v2."""
+    fidel = (company_context or {}).get("fidel_whatsapp_publico")
+    contacto = (
+        f", ou dá-lhe o contacto directo do Fidel Kussunga: {fidel}" if fidel else ""
+    )
+    return (
+        "\n---\n"
+        "REGRA DE PREÇOS (complementa a secção PREÇOS):\n"
+        "- Podes indicar os valores que estiverem no CONHECIMENTO BMST, em Kwanzas (AOA), tal como estão.\n"
+        "- Se o lead pedir uma funcionalidade sem preço no CONHECIMENTO BMST, não dês número: "
+        f"diz que a equipa de vendas o vai contactar para lhe dar o preço{contacto}.\n"
+    )
+
+
 CONVERSATION_STATE_TEMPLATE = """
 ---
 ESTADO DA CONVERSA (gerado pelo sistema, nunca mostrar ao lead):

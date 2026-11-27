@@ -337,6 +337,7 @@ _COMPANY_CONTEXT_KEYS = (
     "contact_email_fidel",
     "lusambu_whatsapp",
     "calendly_url",
+    "fidel_whatsapp_publico",
 )
 _COMPANY_CONTEXT_TTL = 300  # segundos (5 minutos)
 _company_context_cache: dict = {"data": None, "loaded_at": 0.0}
@@ -356,7 +357,7 @@ async def get_company_context() -> dict:
     """Devolve os contactos da empresa lidos de company_config, com cache de 5 minutos.
 
     Chaves devolvidas: site_url, contact_email_sales, contact_email_support,
-    contact_email_fidel, lusambu_whatsapp, calendly_url.
+    contact_email_fidel, lusambu_whatsapp, calendly_url, fidel_whatsapp_publico.
     Uma chave vazia ou "None" fica com valor None e gera um aviso nos logs;
     quem usa o contexto não deve mencionar esse dado.
     calendly_url: enquanto não existir em company_config, usa o valor actual do

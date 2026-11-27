@@ -49,99 +49,132 @@ _load_dotenv()
 # ---------------------------------------------------------------------------
 
 CHUNKS: list[dict] = [
-    # ---- Serviços ----
+    # ---- Serviços (cinco áreas de solução, texto aprovado do site) ----
     {
         "conteudo": (
-            "Automação de Processos: fluxos automatizados sem IA. "
-            "Inclui automação simples de tarefas repetitivas, automação multi-sistema "
-            "e integrações via API e Webhook. Ideal para empresas que querem eliminar "
-            "trabalho manual sem depender de inteligência artificial."
+            "Sistemas Inteligentes e IA (AI & Intelligent Systems): pesquisa nos documentos da empresa; "
+            "agentes para tarefas em várias etapas; processamento de documentos; sistemas com vários agentes. "
+            "Página: https://bmst.ao/pt/solucoes/sistemas-inteligentes-ia/"
         ),
-        "metadata": {"tipo": "servico", "nome": "Automação de Processos"},
+        "metadata": {"tipo": "servico", "nome": "Sistemas Inteligentes e IA"},
     },
     {
         "conteudo": (
-            "Automação com IA: fluxos inteligentes com modelos de linguagem e visão. "
-            "Capacidades: classificação e routing automático de pedidos, extracção de dados "
-            "de documentos (facturas, contratos, formulários), resumos e relatórios automáticos. "
-            "Reduz erros e tempo de processamento em operações baseadas em documentos."
+            "Automação e Integração (Automation & Integration): automação de processos; "
+            "integração de sistemas (CRM, ERP, APIs); mensagens e WhatsApp; fluxos em n8n. "
+            "Página: https://bmst.ao/pt/solucoes/automacao-integracao/"
         ),
-        "metadata": {"tipo": "servico", "nome": "Automação com IA"},
+        "metadata": {"tipo": "servico", "nome": "Automação e Integração"},
     },
     {
         "conteudo": (
-            "Chatbots & Assistentes IA: sistemas conversacionais disponíveis 24 horas por dia, "
-            "7 dias por semana, para WhatsApp, Telegram e Web. "
-            "Casos de uso: atendimento ao cliente, vendas e qualificação de leads, "
-            "assistente interno para equipas. Eliminam perdas de negócio por indisponibilidade."
+            "Engenharia de Software (Software Engineering): aplicações web; sistemas empresariais; "
+            "backend e APIs; frontend e experiência de utilização. "
+            "Página: https://bmst.ao/pt/solucoes/engenharia-de-software/"
         ),
-        "metadata": {"tipo": "servico", "nome": "Chatbots & Assistentes IA"},
+        "metadata": {"tipo": "servico", "nome": "Engenharia de Software"},
     },
     {
         "conteudo": (
-            "Agentes de IA Autónomos: sistemas que executam tarefas complexas de forma autónoma, "
-            "sem intervenção humana para cada passo. "
-            "Aplicações: monitorização proactiva de sistemas ou mercados, "
-            "vendas e follow-up automático de leads, suporte técnico de nível 1. "
-            "Funcionam como um colaborador digital que nunca para."
+            "Inteligência de Dados (Data Intelligence): engenharia de dados; painéis de gestão; "
+            "relatórios automáticos; análise e apoio à decisão. "
+            "Página: https://bmst.ao/pt/solucoes/inteligencia-de-dados/"
         ),
-        "metadata": {"tipo": "servico", "nome": "Agentes de IA Autónomos"},
+        "metadata": {"tipo": "servico", "nome": "Inteligência de Dados"},
     },
     {
         "conteudo": (
-            "Equipas de Agentes Orquestradas (multi-agente): múltiplos agentes de IA a trabalhar "
-            "em conjunto para processos complexos. "
-            "Exemplos: gestão completa de operações, onboarding automatizado de novos clientes, "
-            "monitorização financeira com alertas e relatórios. "
-            "Para empresas que precisam de automação em vários departamentos em simultâneo."
+            "Cibersegurança (Cybersecurity): auditoria de segurança; avaliação de vulnerabilidades; "
+            "reforço de sistemas; segurança de aplicações; consultoria. "
+            "Página: https://bmst.ao/pt/solucoes/ciberseguranca/"
         ),
-        "metadata": {"tipo": "servico", "nome": "Equipas de Agentes Orquestradas"},
+        "metadata": {"tipo": "servico", "nome": "Cibersegurança"},
+    },
+    # ---- Preços (em Kwanzas) ----
+    {
+        "conteudo": (
+            "Assistente de Atendimento com base de conhecimento (área: Automação e Integração). "
+            "Atendimento automático 24 horas por dia no WhatsApp, com base de conhecimento do cliente. "
+            "Qualifica clientes, responde a perguntas frequentes e encaminha para a equipa. "
+            "Investimento: setup de 95.000 AOA e mensalidade de 42.000 AOA."
+        ),
+        "metadata": {"tipo": "preco", "nome": "Assistente de Atendimento", "area": "Automação e Integração"},
     },
     {
         "conteudo": (
-            "Dados & Business Intelligence: infra-estrutura de dados para decisão. "
-            "Inclui pipelines ETL para mover e transformar dados entre sistemas, "
-            "data warehouse centralizado e dashboards em tempo real. "
-            "Transforma dados dispersos em visibilidade operacional clara."
+            "Equipa de Vendas Autónoma (área: Sistemas Inteligentes e IA). "
+            "Sistema com vários agentes que gere o ciclo de vendas: qualificação de leads, follow-up "
+            "automático, registo no CRM e passagem à equipa só para fechar. Canais: WhatsApp, email e LinkedIn. "
+            "Investimento: setup de 160.000 AOA e mensalidade de 68.000 AOA."
         ),
-        "metadata": {"tipo": "servico", "nome": "Dados & Business Intelligence"},
+        "metadata": {"tipo": "preco", "nome": "Equipa de Vendas Autónoma", "area": "Sistemas Inteligentes e IA"},
     },
     {
         "conteudo": (
-            "Infraestrutura & Cibersegurança: base técnica para operar com segurança. "
-            "Cobre configuração e gestão de servidores, segurança de APIs e integrações, "
-            "backup automatizado e planos de continuidade de negócio. "
-            "Para empresas que precisam de garantias de uptime e protecção de dados."
+            "Sistema de Prospecção Activa (área: Sistemas Inteligentes e IA). "
+            "Agentes que executam o ciclo de prospecção B2B: pesquisa de leads por sector, mensagens "
+            "personalizadas, follow-up, registo no CRM, propostas e facturas. "
+            "Investimento: setup de 240.000 AOA e mensalidade de 95.000 AOA."
         ),
-        "metadata": {"tipo": "servico", "nome": "Infraestrutura & Cibersegurança"},
+        "metadata": {"tipo": "preco", "nome": "Sistema de Prospecção Activa", "area": "Sistemas Inteligentes e IA"},
     },
     {
         "conteudo": (
-            "Formação & Consultoria: capacitação interna de equipas. "
-            "Workshops presenciais de automação e IA (4 horas cada, práticos e adaptados ao sector). "
-            "Diagnóstico de automação: mapeamos os processos da empresa e identificamos "
-            "onde a automação traz maior ROI. Ideal como primeiro passo antes de implementar."
+            "Pipeline de Conteúdo para Redes Sociais (área: Automação e Integração). "
+            "Agentes que pesquisam, escrevem, revêem e publicam conteúdo no LinkedIn, Instagram e Facebook. "
+            "Investimento: setup de 160.000 AOA e mensalidade de 68.000 AOA."
         ),
-        "metadata": {"tipo": "servico", "nome": "Formação & Consultoria"},
+        "metadata": {"tipo": "preco", "nome": "Pipeline de Conteúdo Social", "area": "Automação e Integração"},
     },
     {
         "conteudo": (
-            "Retainer — Parceiro Contínuo: acompanhamento mensal para empresas que já automatizaram. "
-            "Inclui monitorização contínua dos sistemas implementados, manutenção e ajustes, "
-            "e relatório mensal de ROI com métricas de impacto. "
-            "Garante que a automação continua a funcionar e a gerar valor ao longo do tempo."
+            "Análise de Documentos Jurídicos (área: Sistemas Inteligentes e IA, processamento de documentos). "
+            "Para escritórios de advocacia e departamentos jurídicos: analisa contratos, extrai cláusulas "
+            "e prazos e responde a perguntas sobre os documentos. "
+            "Investimento: setup de 200.000 AOA e mensalidade de 80.000 AOA."
         ),
-        "metadata": {"tipo": "servico", "nome": "Retainer (Parceiro Contínuo)"},
+        "metadata": {"tipo": "preco", "nome": "Análise Documental Jurídica", "area": "Sistemas Inteligentes e IA"},
+    },
+    {
+        "conteudo": (
+            "Inteligência de Mercado (área: Inteligência de Dados). "
+            "Agente que acompanha concorrentes e entrega relatórios periódicos sobre presença digital, "
+            "preços e posicionamento. "
+            "Investimento: setup de 180.000 AOA e mensalidade de 75.000 AOA."
+        ),
+        "metadata": {"tipo": "preco", "nome": "Inteligência de Mercado", "area": "Inteligência de Dados"},
+    },
+    {
+        "conteudo": (
+            "Solução Empresarial à medida (área: Engenharia de Software). "
+            "Sistema desenhado para o processo específico da empresa, dimensionado em reunião. "
+            "Investimento: a partir de 400.000 AOA de setup e 150.000 AOA de mensalidade."
+        ),
+        "metadata": {"tipo": "preco", "nome": "Solução Empresarial à medida", "area": "Engenharia de Software"},
+    },
+    {
+        "conteudo": (
+            "Tabela de preços BMST (em Kwanzas, setup e mensalidade): "
+            "Assistente de Atendimento 95.000 e 42.000 AOA; "
+            "Equipa de Vendas Autónoma 160.000 e 68.000 AOA; "
+            "Sistema de Prospecção Activa 240.000 e 95.000 AOA; "
+            "Pipeline de Conteúdo Social 160.000 e 68.000 AOA; "
+            "Análise Documental Jurídica 200.000 e 80.000 AOA; "
+            "Inteligência de Mercado 180.000 e 75.000 AOA; "
+            "Solução Empresarial à medida a partir de 400.000 e 150.000 AOA. "
+            "Funcionalidades fora desta tabela não têm preço tabelado."
+        ),
+        "metadata": {"tipo": "preco_tabela", "nome": "Tabela de preços BMST"},
     },
     # ---- Casos de estudo ----
     {
         "conteudo": (
-            "Caso Jurídico — Advogado André Fonseca: escritório de advogados sem presença digital. "
+            "Caso Jurídico — Escritório de advocacia: escritório de advogados sem presença digital. "
             "Implementámos presença digital do zero e facturação 100% automatizada. "
             "Resultado entregue em 1 mês. O advogado deixou de gastar tempo com tarefas administrativas "
             "e passou a receber clientes qualificados automaticamente."
         ),
-        "metadata": {"tipo": "caso", "sector": "Jurídico", "cliente": "Advogado André Fonseca"},
+        "metadata": {"tipo": "caso", "sector": "Jurídico"},
     },
     {
         "conteudo": (
