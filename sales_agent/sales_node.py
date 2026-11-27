@@ -76,12 +76,12 @@ async def sales_agent_node(state: LusambuState) -> LusambuState:
 
     # Contexto RAG relevante para a dor do lead
     dor = state.get("supervisor_decision", {}).get("dor_confirmada", "")
-    rag_query = f"solução para: {dor}" if dor else "portfólio bisca+ preços casos"
+    rag_query = f"solução para: {dor}" if dor else "portfólio bmst preços casos"
     rag_context = await consultar_conhecimento(rag_query) or ""
 
     # Histórico formatado para o LLM
     historico = "\n".join([
-        f"{'LEAD' if isinstance(m, HumanMessage) else 'BISCA+'}: {m.content}"
+        f"{'LEAD' if isinstance(m, HumanMessage) else 'BMST'}: {m.content}"
         for m in messages
     ])
 

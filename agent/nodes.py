@@ -14,7 +14,7 @@ from .prompts import (
 )
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
 from integrations.supabase_client import (
-    upsert_lead, get_outreach_message, get_mensagens_history,
+    upsert_lead, get_outreach_message, get_mensagens_history, get_company_context,
     get_prospect_context, get_prospect_by_id, _resolve_empresa, get_message_history,
 )
 from integrations.rag import consultar_conhecimento
@@ -143,7 +143,7 @@ async def load_outreach_context(state: LusambuState) -> LusambuState:
     if historico:
         linhas = []
         for m in historico:
-            papel = "BISCA+" if m.get("direcao") == "saida" else "LEAD"
+            papel = "BMST" if m.get("direcao") == "saida" else "LEAD"
             conteudo = (m.get("conteudo") or "").strip()
             if conteudo:
                 linhas.append(f"{papel}: {conteudo}")
@@ -197,6 +197,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
 
     data_confirmed = state.get("data_confirmed", False) or extracted_after_user.get("confirms_data", False)
     calendly_sent = state.get("calendly_sent", False)
+    calendly_link = (await get_company_context()).get("calendly_url")
 
     # ---- Caminho directo: enviar Calendly sem passar pelo LLM ----
     # Condição: estamos em closing, dados completos, lead confirmou agora, link ainda não enviado.
@@ -205,8 +206,9 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
         and _closing_data_complete(extracted_after_user)
         and data_confirmed
         and not calendly_sent
+        and calendly_link
     ):
-        link = os.getenv("CALENDLY_LINK", "") or "https://calendly.com/contact-biscaplus/30min"
+        link = calendly_link
         link_msg = (
             f"Perfeito. Usa este link para escolheres o horário que te convém — "
             f"leva menos de um minuto: {link}"
@@ -299,7 +301,7 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
 
     if rag_context:
         system += (
-            "\n\n---\nCONHECIMENTO BISCA+ (informação verificada sobre serviços e casos reais):\n"
+            "\n\n---\nCONHECIMENTO BMST (informação verificada sobre serviços e casos reais):\n"
             + rag_context
             + "\n---\n"
             "Usa este contexto se o lead perguntou sobre serviços, sectores ou clientes. "

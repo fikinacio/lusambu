@@ -451,7 +451,7 @@ _SITE_INBOUND_MARKERS = (
     "através do site",
     "site da bmst",
     "site da bisca",
-    "biscamaisst.com",
+    "bmst.ao",
 )
 
 

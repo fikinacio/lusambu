@@ -18,7 +18,7 @@ def _format_history(messages: list) -> str:
         if isinstance(m, HumanMessage):
             role = "LEAD"
         elif isinstance(m, AIMessage):
-            role = "BISCA+"
+            role = "BMST"
         else:
             role = "MSG"
         lines.append(f"{role}: {m.content}")

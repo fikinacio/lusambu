@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from supabase import create_client, Client
@@ -323,6 +324,64 @@ async def get_company_config() -> dict:
     except Exception as e:
         logger.error(f"Erro ao carregar company_config: {e}")
         return {}
+
+
+# ---------------------------------------------------------------------------
+# Contexto de contactos da empresa (fonte única: company_config)
+# ---------------------------------------------------------------------------
+
+_COMPANY_CONTEXT_KEYS = (
+    "site_url",
+    "contact_email_sales",
+    "contact_email_support",
+    "contact_email_fidel",
+    "lusambu_whatsapp",
+    "calendly_url",
+)
+_COMPANY_CONTEXT_TTL = 300  # segundos (5 minutos)
+_company_context_cache: dict = {"data": None, "loaded_at": 0.0}
+
+
+def _clean_config_value(value) -> Optional[str]:
+    """Normaliza valores vazios ou "None" para None."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in ("none", "null"):
+        return None
+    return text
+
+
+async def get_company_context() -> dict:
+    """Devolve os contactos da empresa lidos de company_config, com cache de 5 minutos.
+
+    Chaves devolvidas: site_url, contact_email_sales, contact_email_support,
+    contact_email_fidel, lusambu_whatsapp, calendly_url.
+    Uma chave vazia ou "None" fica com valor None e gera um aviso nos logs;
+    quem usa o contexto não deve mencionar esse dado.
+    calendly_url: enquanto não existir em company_config, usa o valor actual do
+    secret CALENDLY_LINK (sem alterar o link em uso).
+    """
+    now = time.monotonic()
+    cached = _company_context_cache["data"]
+    if cached is not None and now - _company_context_cache["loaded_at"] < _COMPANY_CONTEXT_TTL:
+        return dict(cached)
+
+    raw = await get_company_config()
+    context = {key: _clean_config_value(raw.get(key)) for key in _COMPANY_CONTEXT_KEYS}
+
+    if context["calendly_url"] is None:
+        context["calendly_url"] = _clean_config_value(os.getenv("CALENDLY_LINK"))
+
+    for key, value in context.items():
+        if value is None:
+            logger.warning(f"company_config: chave '{key}' vazia ou em falta, não será mencionada.")
+
+    # Só guarda em cache se a leitura devolveu dados (evita fixar um erro por 5 minutos)
+    if raw:
+        _company_context_cache["data"] = dict(context)
+        _company_context_cache["loaded_at"] = now
+    return context
 
 
 async def get_lead_for_proposal(whatsapp: str) -> Optional[dict]:
