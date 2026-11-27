@@ -9,6 +9,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from agent.state import LusambuState
 from integrations.evolution import send_whatsapp_message, send_typing_indicator
 from integrations.rag import consultar_conhecimento
+from integrations.supabase_client import get_company_context
 from .prompts import SALES_AGENT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -95,8 +96,11 @@ Dor confirmada: {dor or "(não especificada — infere pelo histórico)"}
 
 Responde como Sales Agent. Uma mensagem, directa, orientada a fechar."""
 
+    calendly_link = (await get_company_context()).get("calendly_url") or ""
+    system_prompt = SALES_AGENT_SYSTEM_PROMPT.replace("{{CALENDLY_URL}}", calendly_link)
+
     response = await llm_sales.ainvoke([
-        SystemMessage(content=SALES_AGENT_SYSTEM_PROMPT),
+        SystemMessage(content=system_prompt),
         HumanMessage(content=prompt),
     ])
 

@@ -9,7 +9,7 @@ from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 from .state import LusambuState, LeadInfo
 from jinja2 import Template
 from .prompts import (
-    SYSTEM_PROMPT, EXTRACTION_PROMPT, PITCH_A, PITCH_B,
+    render_system_prompt, CONVERSATION_STATE_TEMPLATE, EXTRACTION_PROMPT,
     OUTREACH_CONTEXT_TEMPLATE, PROSPECT_CONTEXT_TEMPLATE,
 )
 from integrations.evolution import send_whatsapp_message, send_typing_indicator, notify_fidel
@@ -277,12 +277,15 @@ async def lusambu_node(state: LusambuState) -> LusambuState:
             prospect=prospect,
             decisor_nome=prospect.get("decisor_nome"),
         )
-    system = prospect_ctx + "\n" + outreach_ctx + "\n" + SYSTEM_PROMPT.format(
-        stage=current_stage,
-        lead_info=json.dumps(extracted_after_user, ensure_ascii=False, default=str),
-        objection_count=objection_count,
-        prompt_variant=variant or "A",
-        pitch_instructions=PITCH_B if variant == "B" else PITCH_A,
+    company_ctx = await get_company_context()
+    system = (
+        prospect_ctx + "\n" + outreach_ctx + "\n"
+        + render_system_prompt(company_ctx)
+        + CONVERSATION_STATE_TEMPLATE.format(
+            stage=current_stage,
+            lead_info=json.dumps(extracted_after_user, ensure_ascii=False, default=str),
+            objection_count=objection_count,
+        )
     )
 
     mensagens_ctx = state.get("mensagens_context", "")
